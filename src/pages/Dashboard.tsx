@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
@@ -23,6 +24,7 @@ import {
   PackageCheck,
   TrendingDown,
   Zap,
+  Loader2,
 } from 'lucide-react'
 import PageContainer from '../components/ui/PageContainer'
 import MetricCard from '../components/ui/MetricCard'
@@ -37,6 +39,7 @@ import AnalysisTriggerPanel from '../components/analysis/AnalysisTriggerPanel'
 import AnalysisSummaryPanel from '../components/analysis/AnalysisSummaryPanel'
 import { useIngest } from '../context/IngestContext'
 import { useAnalysis } from '../context/AnalysisContext'
+import { uploadTopologyFiles } from '../lib/api/ingest'
 
 const staticMetrics = [
   {
@@ -162,8 +165,46 @@ function LiveMetricCard({ realValue, delay, ...rest }: MetricDef & { delay?: num
 export default function Dashboard() {
   const [showUpload, setShowUpload] = useState(false)
   const [showAnalyze, setShowAnalyze] = useState(false)
-  const { status: ingestStatus, result: ingestResult, isReady } = useIngest()
+  const [loadingDemo, setLoadingDemo] = useState(false)
+  const navigate = useNavigate()
+  const { status: ingestStatus, result: ingestResult, isReady, setUploading, setSuccess, setError } = useIngest()
   const { isAnalyzed, result: analysisResult, healthScore, totalFindings, status: analysisStatus } = useAnalysis()
+
+  const handleLoadDemo = async () => {
+    if (loadingDemo || isReady) return
+    setLoadingDemo(true)
+    try {
+      const resp = await fetch('/backend/app/data/uploads/hackathon.csv')
+      if (!resp.ok) throw new Error('Demo file unavailable')
+      const blob = await resp.blob()
+      const file = new File([blob], 'hackathon.csv', { type: 'text/csv' })
+      setUploading()
+      const result = await uploadTopologyFiles([file])
+      setSuccess(result)
+    } catch {
+      try {
+        const demoBlob = new Blob([
+          'Discrete Queue Name,q_manager_name,q_type,ProducerName,ConsumerName,app_id,PrimaryAppRole,xmit_q_name,remote_q_mgr_name,remote_q_name,line_of_business\n' +
+          'PAYMENTS.REQUEST.Q,QM_PAYMENTS,LOCAL,APP_BILLING,APP_PAYMENTS,APP001,PRODUCER,XMIT.TO.QM2,QM_CORE,PAYMENTS.REQUEST.Q,Finance\n' +
+          'PAYMENTS.REPLY.Q,QM_PAYMENTS,LOCAL,APP_PAYMENTS,APP_BILLING,APP002,CONSUMER,,,, Finance\n' +
+          'ORDERS.IN.Q,QM_ORDERS,LOCAL,APP_ECOMM,APP_FULFILMENT,APP003,PRODUCER,XMIT.TO.QM3,QM_WAREHOUSE,ORDERS.IN.Q,Retail\n' +
+          'ORDERS.OUT.Q,QM_ORDERS,LOCAL,APP_FULFILMENT,APP_ECOMM,APP004,CONSUMER,,,,Retail\n' +
+          'INVENTORY.Q,QM_WAREHOUSE,LOCAL,APP_FULFILMENT,APP_INVENTORY,APP005,PRODUCER,,,,Warehouse\n' +
+          'ALERTS.DLQ,QM_CORE,LOCAL,,,APP006,CONSUMER,,,,Core\n' +
+          'NOTIFY.Q,QM_CORE,REMOTE,APP_NOTIFY,,,PRODUCER,XMIT.TO.QM4,QM_NOTIFY,NOTIFY.Q,Notifications\n' +
+          'AUDIT.Q,QM_CORE,LOCAL,APP_AUDIT,,,CONSUMER,,,,Compliance\n'
+        ], { type: 'text/csv' })
+        const demoFile = new File([demoBlob], 'hackathon_demo.csv', { type: 'text/csv' })
+        setUploading()
+        const result = await uploadTopologyFiles([demoFile])
+        setSuccess(result)
+      } catch (e2) {
+        setError('Demo data could not be loaded. Please upload your own CSV file.')
+      }
+    } finally {
+      setLoadingDemo(false)
+    }
+  }
 
   const liveMetrics: MetricDef[] = (() => {
     if (isAnalyzed && analysisResult) {
@@ -312,6 +353,7 @@ export default function Dashboard() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  onClick={() => navigate('/planner')}
                   className="flex items-center gap-2 px-5 py-2.5 bg-cyan-500/8 hover:bg-cyan-500/15 border border-cyan-500/25 text-cyan-300 text-[13px] font-bold rounded-xl transition-all"
                 >
                   <Play className="w-4 h-4" />
@@ -320,10 +362,18 @@ export default function Dashboard() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-700/40 hover:bg-slate-700/60 border border-slate-700/40 text-slate-400 text-[13px] font-bold rounded-xl transition-all"
+                  onClick={handleLoadDemo}
+                  disabled={loadingDemo || isReady}
+                  className={`flex items-center gap-2 px-5 py-2.5 border text-[13px] font-bold rounded-xl transition-all ${
+                    isReady
+                      ? 'bg-emerald-500/8 border-emerald-500/20 text-emerald-400 cursor-default'
+                      : loadingDemo
+                      ? 'bg-slate-700/40 border-slate-700/40 text-slate-500 cursor-wait'
+                      : 'bg-slate-700/40 hover:bg-slate-700/60 border-slate-700/40 text-slate-400 cursor-pointer'
+                  }`}
                 >
-                  <Database className="w-4 h-4" />
-                  View Demo Data
+                  {loadingDemo ? <Loader2 className="w-4 h-4 animate-spin" /> : isReady ? <CheckCircle2 className="w-4 h-4" /> : <Database className="w-4 h-4" />}
+                  {loadingDemo ? 'Loading Demo…' : isReady ? 'Demo Loaded' : 'View Demo Data'}
                 </motion.button>
               </div>
             </div>
@@ -441,7 +491,10 @@ export default function Dashboard() {
               <h2 className="text-[15px] font-semibold text-white">Recent Findings</h2>
               <p className="text-[12px] text-slate-500 mt-0.5">Latest intelligence from topology scan</p>
             </div>
-            <button className="flex items-center gap-1.5 text-[12px] text-blue-400 hover:text-blue-300 transition-colors font-medium">
+            <button
+              onClick={() => navigate('/findings')}
+              className="flex items-center gap-1.5 text-[12px] text-blue-400 hover:text-blue-300 transition-colors font-medium"
+            >
               <span>View all findings</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>

@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useIngest } from '../../context/IngestContext'
 import { useAnalysis } from '../../context/AnalysisContext'
 import { useExport } from '../../context/ExportContext'
+import { useTheme } from '../../context/ThemeContext'
 
 const navItems = [
   { path: '/dashboard', label: 'Command Center', icon: LayoutDashboard, sublabel: 'Overview' },
@@ -35,6 +36,7 @@ export default function Sidebar() {
   const { isReady, result, status } = useIngest()
   const { isAnalyzed, totalFindings, healthScore } = useAnalysis()
   const { isExported, artifactCount } = useExport()
+  const { isDark } = useTheme()
   const isIngesting = status === 'uploading' || status === 'processing'
 
   const objectCount = isReady && result
@@ -42,25 +44,27 @@ export default function Sidebar() {
     : null
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-[#080D18] border-r border-slate-800/50 flex flex-col h-screen sticky top-0">
-      <div className="px-5 py-5 border-b border-slate-800/50">
+    <aside className={`w-64 flex-shrink-0 border-r flex flex-col h-screen sticky top-0 transition-colors duration-300 ${
+      isDark ? 'bg-[#080D18] border-slate-800/50' : 'bg-white border-slate-200/80'
+    }`}>
+      <div className={`px-5 py-5 border-b ${isDark ? 'border-slate-800/50' : 'border-slate-200/80'}`}>
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
               <Zap className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#080D18]" />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 ${isDark ? 'border-[#080D18]' : 'border-white'}`} />
           </div>
           <div>
-            <div className="text-[13px] font-black text-white tracking-tight leading-tight">MQ IntelliMesh</div>
-            <div className="text-[9px] text-slate-600 font-semibold uppercase tracking-widest mt-0.5">AI Topology Platform</div>
+            <div className={`text-[13px] font-black tracking-tight leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>MQ IntelliMesh</div>
+            <div className={`text-[9px] font-semibold uppercase tracking-widest mt-0.5 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>AI Topology Platform</div>
           </div>
         </div>
       </div>
 
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         <div className="px-3 mb-2">
-          <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Modules</span>
+          <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-700' : 'text-slate-400'}`}>Modules</span>
         </div>
         {navItems.map((item) => {
           const Icon = item.icon
@@ -72,7 +76,9 @@ export default function Sidebar() {
               className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 relative ${
                 isActive
                   ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                  : isDark
+                  ? 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent'
               }`}
             >
               {isActive && (
@@ -82,9 +88,13 @@ export default function Sidebar() {
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
               )}
-              <Icon className={`w-3.5 h-3.5 flex-shrink-0 relative ${isActive ? 'text-blue-400' : 'text-slate-600 group-hover:text-slate-300'}`} />
+              <Icon className={`w-3.5 h-3.5 flex-shrink-0 relative ${
+                isActive ? 'text-blue-400' : isDark ? 'text-slate-600 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-slate-700'
+              }`} />
               <div className="flex-1 min-w-0 relative">
-                <div className={`text-[12px] font-semibold leading-tight truncate ${isActive ? 'text-blue-200' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                <div className={`text-[12px] font-semibold leading-tight truncate ${
+                  isActive ? 'text-blue-200' : isDark ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-500 group-hover:text-slate-800'
+                }`}>
                   {item.label}
                 </div>
               </div>
@@ -94,7 +104,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-4 py-3 border-t border-slate-800/50">
+      <div className={`px-4 py-3 border-t ${isDark ? 'border-slate-800/50' : 'border-slate-200/80'}`}>
         <AnimatePresence mode="wait">
           {isExported ? (
             <motion.div
@@ -197,14 +207,14 @@ export default function Sidebar() {
         </AnimatePresence>
       </div>
 
-      <div className="px-4 py-3 border-t border-slate-800/50">
+      <div className={`px-4 py-3 border-t ${isDark ? 'border-slate-800/50' : 'border-slate-200/80'}`}>
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[10px] font-black text-white">
             PB
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold text-slate-300 truncate">Platform Architect</div>
-            <div className="text-[10px] text-slate-600 truncate">Enterprise MQ Team</div>
+            <div className={`text-[11px] font-bold truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Platform Architect</div>
+            <div className={`text-[10px] truncate ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>Enterprise MQ Team</div>
           </div>
         </div>
       </div>

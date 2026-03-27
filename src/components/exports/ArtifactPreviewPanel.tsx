@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FileText, Copy, Download, ExternalLink, CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { artifacts, previewContent } from '../../data/exportsData'
@@ -89,7 +90,30 @@ function LineNumbers({ count }: { count: number }) {
 }
 
 export default function ArtifactPreviewPanel({ selectedId, onClose }: ArtifactPreviewPanelProps) {
+  const [copied, setCopied] = useState(false)
   const artifact = artifacts.find(a => a.id === selectedId)
+
+  const handleCopy = () => {
+    const content = selectedId ? previewContent[selectedId] : null
+    if (!content) return
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const handleDownload = () => {
+    if (!artifact) return
+    const content = previewContent[selectedId ?? ''] ?? artifact.description ?? ''
+    const ext = artifact.formats[0]?.toLowerCase() ?? 'txt'
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${artifact.name.replace(/\s+/g, '_')}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="bg-[#0D1117] border border-slate-800/60 rounded-2xl overflow-hidden flex flex-col" style={{ minHeight: 400 }}>
@@ -110,13 +134,34 @@ export default function ArtifactPreviewPanel({ selectedId, onClose }: ArtifactPr
         <div className="flex items-center gap-2">
           {artifact && (
             <>
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-600 hover:text-slate-300 transition-all">
-                <Copy className="w-3 h-3" />
+              <button
+                onClick={handleCopy}
+                title={copied ? 'Copied!' : 'Copy content'}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-all ${
+                  copied
+                    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                    : 'bg-slate-800/50 border-slate-700/30 text-slate-600 hover:text-slate-300'
+                }`}
+              >
+                {copied ? <CheckCircle2 className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               </button>
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-600 hover:text-slate-300 transition-all">
+              <button
+                onClick={handleDownload}
+                title="Download artifact"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-600 hover:text-blue-400 hover:border-blue-500/30 transition-all"
+              >
                 <Download className="w-3 h-3" />
               </button>
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-600 hover:text-slate-300 transition-all">
+              <button
+                title="Open in new tab"
+                onClick={() => {
+                  const content = selectedId ? previewContent[selectedId] : null
+                  if (!content) return
+                  const blob = new Blob([content], { type: 'text/plain' })
+                  window.open(URL.createObjectURL(blob), '_blank')
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-600 hover:text-slate-300 transition-all"
+              >
                 <ExternalLink className="w-3 h-3" />
               </button>
             </>

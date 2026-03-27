@@ -39,6 +39,36 @@
   }
 }
 
+html.light-theme {
+  --bg-base: #F0F4F8;
+  --bg-surface: #FFFFFF;
+  --bg-surface2: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --border-color: #E2E8F0;
+  --border-subtle: #CBD5E1;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-faint: #CBD5E1;
+}
+
+html.light-theme body {
+  background-color: #F0F4F8;
+  color: #0F172A;
+}
+
+html.light-theme ::-webkit-scrollbar-track {
+  background: #E2E8F0;
+}
+
+html.light-theme ::-webkit-scrollbar-thumb {
+  background: #94A3B8;
+}
+
+html.light-theme ::-webkit-scrollbar-thumb:hover {
+  background: #64748B;
+}
+
 @layer utilities {
   .font-mono {
     font-family: 'JetBrains Mono', monospace;

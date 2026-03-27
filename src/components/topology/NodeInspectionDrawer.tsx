@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { X, AppWindow, Server, Layers, ArrowRightLeft, Send, AlertTriangle, CheckCircle2, Info, ShieldAlert } from 'lucide-react'
 import type { Node } from '@xyflow/react'
 import type { AppNodeData, QMNodeData, QueueNodeData } from '../../data/topologyData'
@@ -34,6 +35,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function NodeInspectionDrawer({ node, onClose, connectedNodeIds }: NodeInspectionDrawerProps) {
+  const navigate = useNavigate()
   if (!node) return null
 
   const isApp = node.type === 'app'
@@ -191,7 +193,10 @@ export default function NodeInspectionDrawer({ node, onClose, connectedNodeIds }
         </div>
 
         <div className="px-4 py-3 border-t border-slate-800/60">
-          <button className="w-full px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 text-[12px] font-semibold rounded-lg transition-all">
+          <button
+            onClick={() => { onClose(); navigate('/planner') }}
+            className="w-full px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 text-[12px] font-semibold rounded-lg transition-all"
+          >
             Add to Transformation Plan
           </button>
         </div>

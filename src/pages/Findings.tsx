@@ -97,7 +97,10 @@ function FindingCard({ finding, index }: FindingCardProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button className="px-3 py-1.5 text-[12px] font-medium text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/10 transition-all opacity-0 group-hover:opacity-100">
+          <button
+            onClick={e => { e.stopPropagation(); setExpanded(true) }}
+            className="px-3 py-1.5 text-[12px] font-medium text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/10 transition-all opacity-0 group-hover:opacity-100"
+          >
             Investigate
           </button>
           {expanded

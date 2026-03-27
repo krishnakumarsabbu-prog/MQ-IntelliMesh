@@ -4,12 +4,14 @@ import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
 import WorkflowProgress from './WorkflowProgress'
 import { useDemo } from '../../context/DemoContext'
+import { useTheme } from '../../context/ThemeContext'
 
 export default function AppShell() {
   const { ceoMode } = useDemo()
+  const { isDark } = useTheme()
 
   return (
-    <div className="flex h-screen bg-[#080D18] overflow-hidden">
+    <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${isDark ? 'bg-[#080D18]' : 'bg-[#F0F4F8]'}`}>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopHeader />

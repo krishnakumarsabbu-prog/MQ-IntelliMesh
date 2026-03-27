@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Server, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface TopologyNode {
   id: string
@@ -35,6 +36,7 @@ const nodeColors = {
 }
 
 export default function MiniTopologyPreview() {
+  const navigate = useNavigate()
   const getNodeById = (id: string) => nodes.find(n => n.id === id)
 
   return (
@@ -111,7 +113,10 @@ export default function MiniTopologyPreview() {
             </div>
           ))}
         </div>
-        <button className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors font-medium">
+        <button
+          onClick={() => navigate('/topology')}
+          className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors font-medium"
+        >
           <span>View Full</span>
           <ArrowRight className="w-3 h-3" />
         </button>

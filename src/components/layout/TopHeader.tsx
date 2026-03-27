@@ -1,8 +1,9 @@
 import { useLocation } from 'react-router-dom'
-import { Search, Bell, HelpCircle, Cpu, ChevronDown, Activity, WifiOff, Loader2, Presentation, MonitorPlay } from 'lucide-react'
+import { Search, Bell, HelpCircle, Cpu, ChevronDown, Activity, WifiOff, Loader2, Presentation, MonitorPlay, Sun, Moon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApiHealth } from '../../hooks/useApiHealth'
 import { useDemo } from '../../context/DemoContext'
+import { useTheme } from '../../context/ThemeContext'
 import type { BackendStatus } from '../../hooks/useApiHealth'
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -61,23 +62,32 @@ export default function TopHeader() {
   const page = pageTitles[location.pathname] || { title: 'MQ IntelliMesh', subtitle: '' }
   const { backendStatus, retry } = useApiHealth()
   const { ceoMode, toggleCeoMode } = useDemo()
+  const { isDark, toggleTheme } = useTheme()
 
   return (
-    <header className="h-14 bg-[#080D18]/95 backdrop-blur-md border-b border-slate-800/50 flex items-center px-5 gap-4 sticky top-0 z-30">
+    <header className={`h-14 backdrop-blur-md border-b flex items-center px-5 gap-4 sticky top-0 z-30 transition-colors duration-300 ${
+      isDark
+        ? 'bg-[#080D18]/95 border-slate-800/50'
+        : 'bg-white/95 border-slate-200/80'
+    }`}>
       <div className="flex-1 min-w-0 flex items-center gap-3">
         <div className="min-w-0">
-          <h1 className="text-[14px] font-bold text-white leading-tight truncate">{page.title}</h1>
-          <p className="text-[10px] text-slate-500 leading-none mt-0.5 truncate hidden sm:block">{page.subtitle}</p>
+          <h1 className={`text-[14px] font-bold leading-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{page.title}</h1>
+          <p className={`text-[10px] leading-none mt-0.5 truncate hidden sm:block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{page.subtitle}</p>
         </div>
       </div>
 
       <div className="hidden md:flex items-center gap-2 flex-shrink-0 max-w-xs w-full">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600" />
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
           <input
             type="text"
             placeholder="Search topology, queues, channels…"
-            className="w-full bg-slate-900/60 border border-slate-800/60 rounded-lg pl-8 pr-3 py-1.5 text-[11px] text-slate-400 placeholder-slate-700 focus:outline-none focus:border-blue-500/40 focus:bg-slate-900 transition-all"
+            className={`w-full border rounded-lg pl-8 pr-3 py-1.5 text-[11px] placeholder-slate-500 focus:outline-none transition-all ${
+              isDark
+                ? 'bg-slate-900/60 border-slate-800/60 text-slate-400 focus:border-blue-500/40 focus:bg-slate-900'
+                : 'bg-slate-100/80 border-slate-200 text-slate-600 focus:border-blue-400/60 focus:bg-white'
+            }`}
           />
         </div>
       </div>
@@ -85,9 +95,9 @@ export default function TopHeader() {
       <div className="flex items-center gap-1.5">
         <BackendIndicator status={backendStatus} onRetry={retry} />
 
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-500/8 border border-blue-500/20">
+        <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${isDark ? 'bg-blue-500/8 border-blue-500/20' : 'bg-blue-50 border-blue-200/60'}`}>
           <Cpu className="w-3 h-3 text-blue-400" />
-          <span className="text-[11px] font-medium text-blue-300 hidden sm:block">AI Active</span>
+          <span className={`text-[11px] font-medium hidden sm:block ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>AI Active</span>
         </div>
 
         <motion.button
@@ -97,7 +107,9 @@ export default function TopHeader() {
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${
             ceoMode
               ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-              : 'bg-slate-800/50 border-slate-700/40 text-slate-500 hover:text-slate-300 hover:border-slate-600/60'
+              : isDark
+              ? 'bg-slate-800/50 border-slate-700/40 text-slate-500 hover:text-slate-300 hover:border-slate-600/60'
+              : 'bg-slate-100 border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300'
           }`}
         >
           {ceoMode ? <MonitorPlay className="w-3 h-3" /> : <Presentation className="w-3 h-3" />}
@@ -120,20 +132,47 @@ export default function TopHeader() {
           )}
         </AnimatePresence>
 
-        <button className="relative w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${
+            isDark
+              ? 'bg-slate-800/50 border-slate-700/40 text-slate-400 hover:text-amber-300 hover:border-amber-500/40 hover:bg-amber-500/10'
+              : 'bg-slate-100 border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-200'
+          }`}
+        >
+          {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+        </motion.button>
+
+        <button
+          className={`relative w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
+            isDark
+              ? 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+          title="Notifications"
+        >
           <Bell className="w-3.5 h-3.5" />
           <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-rose-500" />
         </button>
 
-        <button className="w-8 h-8 hidden sm:flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+        <button
+          className={`w-8 h-8 hidden sm:flex items-center justify-center rounded-lg transition-all ${
+            isDark
+              ? 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+          title="Help & Documentation"
+        >
           <HelpCircle className="w-3.5 h-3.5" />
         </button>
 
-        <div className="flex items-center gap-1.5 ml-1 pl-3 border-l border-slate-800 cursor-pointer hover:opacity-80 transition-opacity">
+        <div className={`flex items-center gap-1.5 ml-1 pl-3 border-l cursor-pointer hover:opacity-80 transition-opacity ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[10px] font-black text-white">
             PB
           </div>
-          <ChevronDown className="w-3 h-3 text-slate-600" />
+          <ChevronDown className={`w-3 h-3 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
         </div>
       </div>
     </header>

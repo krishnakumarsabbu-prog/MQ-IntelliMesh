@@ -12,9 +12,11 @@ import { IngestProvider } from './context/IngestContext'
 import { AnalysisProvider } from './context/AnalysisContext'
 import { ExportProvider } from './context/ExportContext'
 import { DemoProvider } from './context/DemoContext'
+import { ThemeProvider } from './context/ThemeContext'
 
 export default function App() {
   return (
+    <ThemeProvider>
     <DemoProvider>
     <IngestProvider>
     <AnalysisProvider>
@@ -38,5 +40,6 @@ export default function App() {
     </AnalysisProvider>
     </IngestProvider>
     </DemoProvider>
+    </ThemeProvider>
   )
 }

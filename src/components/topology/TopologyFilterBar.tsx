@@ -1,4 +1,5 @@
-import { Search, X, Maximize2, ScanLine, Camera, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
+import { Search, X, Maximize2, ScanLine, Camera, RotateCcw, CheckCircle2 } from 'lucide-react'
 
 export interface TopologyFilters {
   search: string
@@ -57,7 +58,20 @@ function ToggleChip({ label, active, onClick }: { label: string; active: boolean
 }
 
 export default function TopologyFilterBar({ filters, onChange, onFitView, onCenter, onReset }: TopologyFilterBarProps) {
+  const [snapshotTaken, setSnapshotTaken] = useState(false)
   const update = (partial: Partial<TopologyFilters>) => onChange({ ...filters, ...partial })
+
+  const handleSnapshot = () => {
+    const canvas = document.querySelector('.react-flow__renderer canvas') as HTMLCanvasElement
+    if (canvas) {
+      const link = document.createElement('a')
+      link.download = `topology-snapshot-${Date.now()}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    }
+    setSnapshotTaken(true)
+    setTimeout(() => setSnapshotTaken(false), 2500)
+  }
 
   return (
     <div className="flex items-center gap-3 flex-wrap px-4 py-3 bg-[#0F172A] border-b border-slate-800/60">
@@ -148,9 +162,16 @@ export default function TopologyFilterBar({ filters, onChange, onFitView, onCent
           <ScanLine className="w-3 h-3" />
           Center
         </button>
-        <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-slate-500 hover:text-slate-300 bg-slate-800/40 border border-slate-700/40 hover:border-slate-600/60 transition-all">
-          <Camera className="w-3 h-3" />
-          Snapshot
+        <button
+          onClick={handleSnapshot}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] transition-all border ${
+            snapshotTaken
+              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+              : 'text-slate-500 hover:text-slate-300 bg-slate-800/40 border-slate-700/40 hover:border-slate-600/60'
+          }`}
+        >
+          {snapshotTaken ? <CheckCircle2 className="w-3 h-3" /> : <Camera className="w-3 h-3" />}
+          {snapshotTaken ? 'Saved!' : 'Snapshot'}
         </button>
       </div>
     </div>
