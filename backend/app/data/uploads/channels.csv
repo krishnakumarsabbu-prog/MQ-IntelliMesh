@@ -1,0 +1,3 @@
+channel_name,from_qm,to_qm,channel_type
+BILL.TO.PAY,QM.BILLING,QM.PAY,SDR
+PAY.FROM.BILL,QM.PAY,QM.BILLING,RCVR

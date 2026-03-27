@@ -1,0 +1,2 @@
+producer,consumer,queue_name
+BILLING-SVC,PAY-SVC,Q.BILLING.IN

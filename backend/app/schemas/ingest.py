@@ -1,20 +1,54 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 
-class IngestRequest(BaseModel):
-    dataset_name: Optional[str] = None
-    description: Optional[str] = None
+class FileIngestResult(BaseModel):
+    filename: str
+    dataset_type: str
+    row_count: int
+    columns_detected: list[str] = []
+    columns_normalized: list[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
+
+
+class InventoryCounts(BaseModel):
+    queue_managers: int = 0
+    queues: int = 0
+    applications: int = 0
+    channels: int = 0
+    relationships: int = 0
+    metadata: int = 0
+
+
+class GraphStats(BaseModel):
+    nodes: int = 0
+    edges: int = 0
+    node_types: dict[str, int] = {}
+    edge_types: dict[str, int] = {}
+    connected_components: Optional[int] = None
+    density: Optional[float] = None
+
+
+class IngestPreview(BaseModel):
+    queue_managers: list[dict[str, Any]] = []
+    queues: list[dict[str, Any]] = []
+    applications: list[dict[str, Any]] = []
+    channels: list[dict[str, Any]] = []
+    relationships: list[dict[str, Any]] = []
 
 
 class IngestResponse(BaseModel):
-    message: str
     status: str
-    dataset_id: Optional[str] = None
-    filename: Optional[str] = None
-    row_count: Optional[int] = None
-    column_count: Optional[int] = None
-    next_phase: Optional[str] = None
+    message: str
+    dataset_id: str
+    datasets_detected: list[str] = []
+    files_processed: list[FileIngestResult] = []
+    inventory: InventoryCounts = InventoryCounts()
+    graph: GraphStats = GraphStats()
+    warnings: list[str] = []
+    errors: list[str] = []
+    preview: IngestPreview = IngestPreview()
 
 
 class IngestValidationResult(BaseModel):
