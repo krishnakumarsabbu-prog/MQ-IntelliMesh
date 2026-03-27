@@ -1,0 +1,5 @@
+app_id,owning_qm,role,assignment_reason
+BILLING-SVC,QM.BILLING,producer,Ownership preserved — single QM connection to 'QM.BILLING'.
+PAY-SVC,QM.PAY,consumer,Ownership preserved — single QM connection to 'QM.PAY'.
+FINANCE-APP,QM.HUB,both,Ownership preserved — single QM connection to 'QM.HUB'.
+ORDER-SVC,QM.BILLING,producer,Ownership preserved — single QM connection to 'QM.BILLING'.

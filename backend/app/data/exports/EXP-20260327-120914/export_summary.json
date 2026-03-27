@@ -1,0 +1,33 @@
+{
+  "product": "MQ IntelliMesh Intelligence Engine",
+  "phase": "Phase 7E \u2014 Export Engine",
+  "transformation_id": "F9E02AFE",
+  "dataset_id": "0635E937",
+  "topology_summary": {
+    "applications": 4,
+    "queue_managers_before": 3,
+    "queue_managers_after": 3,
+    "channels_before": 2,
+    "channels_after": 6,
+    "local_queues_generated": 4,
+    "remote_queues_generated": 4,
+    "xmit_queues_generated": 3,
+    "routes_generated": 4
+  },
+  "complexity": {
+    "before_score": 12.21,
+    "after_score": 12.62,
+    "reduction_percent": -3.4,
+    "delta_score": -0.41
+  },
+  "validation": {
+    "compliance_score": 100.0,
+    "passed_checks": 9,
+    "failed_checks": 0,
+    "warnings": 0
+  },
+  "analysis": {
+    "total_findings": 4,
+    "health_score": 0
+  }
+}

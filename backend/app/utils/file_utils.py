@@ -66,3 +66,60 @@ def delete_upload(filename: str) -> bool:
         logger.info("Deleted upload: %s", path)
         return True
     return False
+
+
+def get_exports_base_dir() -> str:
+    from app.core.constants import DATA_DIR
+    return os.path.join(DATA_DIR, "exports")
+
+
+def create_export_directory(export_id: str) -> str:
+    base = get_exports_base_dir()
+    export_dir = os.path.join(base, export_id)
+    os.makedirs(export_dir, exist_ok=True)
+    logger.debug("Export directory created: %s", export_dir)
+    return export_dir
+
+
+def write_csv(df, path: str) -> int:
+    df.to_csv(path, index=False)
+    size = os.path.getsize(path)
+    logger.debug("Wrote CSV: %s (%d bytes)", path, size)
+    return size
+
+
+def write_json(data: dict, path: str) -> int:
+    import json
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+    size = os.path.getsize(path)
+    logger.debug("Wrote JSON: %s (%d bytes)", path, size)
+    return size
+
+
+def zip_directory(source_dir: str, zip_path: str) -> int:
+    zip_base = zip_path.removesuffix(".zip")
+    shutil.make_archive(zip_base, "zip", source_dir)
+    size = os.path.getsize(zip_path) if os.path.exists(zip_path) else 0
+    logger.info("Created ZIP: %s (%d bytes)", zip_path, size)
+    return size
+
+
+def list_export_directories() -> list[str]:
+    base = get_exports_base_dir()
+    if not os.path.exists(base):
+        return []
+    return sorted(
+        [d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))],
+        reverse=True,
+    )
+
+
+def get_file_size(path: str) -> int:
+    return os.path.getsize(path) if os.path.exists(path) else 0
+
+
+def read_json(path: str) -> dict:
+    import json
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)

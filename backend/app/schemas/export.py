@@ -1,26 +1,42 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 
 class ExportRequest(BaseModel):
+    dataset_id: Optional[str] = None
     transformation_id: Optional[str] = None
-    formats: list[str] = ["csv", "yaml", "json"]
-    include_evidence: bool = True
 
 
 class ExportArtifact(BaseModel):
-    artifact_id: str
     name: str
-    format: str
-    size_bytes: Optional[int] = None
-    path: Optional[str] = None
-    status: str
+    type: str
+    records: int
+    path: str
+    size_bytes: int = 0
+
+
+class ExportBundle(BaseModel):
+    name: str
+    path: str
+    size_bytes: int
+
+
+class ExportManifest(BaseModel):
+    export_id: str
+    generated_at: str
+    dataset_id: str
+    transformation_id: str
+    artifacts: list[ExportArtifact] = []
 
 
 class ExportResponse(BaseModel):
-    message: str
     status: str
-    transformation_id: Optional[str] = None
+    message: str
+    export_id: str
+    generated_at: str
+    dataset_id: str
+    transformation_id: str
+    artifact_count: int = 0
     artifacts: list[ExportArtifact] = []
-    total_artifacts: int = 0
-    next_phase: Optional[str] = None
+    bundle: Optional[ExportBundle] = None
+    summary: dict[str, Any] = {}

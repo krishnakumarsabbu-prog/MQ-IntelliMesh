@@ -200,6 +200,55 @@ The response includes:
 
 ---
 
+### Step 4 — Generate export artifacts and ZIP bundle
+
+```bash
+curl -X POST http://localhost:8000/api/export \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Generated artifacts (stored in `backend/app/data/exports/<EXP-ID>/`):**
+
+| File | Type | Description |
+|------|------|-------------|
+| `target_queue_managers.csv` | target_topology | All QMs in the target state |
+| `target_applications.csv` | target_topology | App → QM ownership assignments |
+| `target_local_queues.csv` | target_topology | Consumer local queues |
+| `target_remote_queues.csv` | target_topology | Producer remote queues |
+| `target_xmit_queues.csv` | target_topology | Transmission queues per QM pair |
+| `target_channels.csv` | target_topology | SDR/RCVR channel pairs |
+| `target_routes.csv` | target_topology | Complete end-to-end route model |
+| `complexity_comparison.csv` | analysis | Before/after MTCS dimension-by-dimension |
+| `analysis_findings.csv` | analysis | Full findings from topology analysis |
+| `transformation_decisions.csv` | analysis | Every transformation decision with rationale |
+| `target_validation.csv` | validation | Pass/fail/warn compliance check results |
+| `export_summary.json` | summary | High-level counts, scores, reduction metrics |
+| `transform_summary.json` | summary | Transformation-specific summary |
+| `manifest.json` | manifest | Artifact inventory |
+| `mq_intellimesh_export_<EXP-ID>.zip` | bundle | All of the above in one downloadable archive |
+
+**Retrieve latest export metadata:**
+
+```bash
+curl http://localhost:8000/api/export/latest
+```
+
+**Download a ZIP bundle:**
+
+```bash
+curl -OJ http://localhost:8000/api/export/download/<EXP-ID>
+```
+
+**Static file access** (when server is running):
+
+```
+GET /exports/<EXP-ID>/manifest.json
+GET /exports/<EXP-ID>/target_routes.csv
+```
+
+---
+
 ## Implementation Phases
 
 | Phase | Scope |
@@ -207,9 +256,9 @@ The response includes:
 | 7A | Backend skeleton, routes, schemas, service stubs |
 | 7B | CSV ingestion + canonical model + graph builder |
 | 7C | Findings engine — 10 check categories, health scoring, hotspot detection |
-| 7D (current) | Target-state transformation + MTCS complexity scoring + validation engine |
-| 7E | Explainability + decision trace |
-| 7F | Artifact export generation |
+| 7D | Target-state transformation + MTCS complexity scoring + validation engine |
+| 7E (current) | Export engine — artifact generation, ZIP bundle, manifest, static serving |
+| 7F | Explainability + decision trace UI payload |
 
 ---
 

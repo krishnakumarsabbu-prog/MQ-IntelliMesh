@@ -1,0 +1,8 @@
+metric,as_is,target,delta,reduction_percent
+Queue Manager Count,3.0,3.0,0.0,0.0
+Channel Count,2.0,6.0,-4.0,-200.0
+Average Routing Hops,2.33,1.0,1.33,57.1
+Multi-QM App Violations,0.0,0.0,0.0,0.0
+Orphan / Waste Objects,0.0,0.0,0.0,0.0
+Connectivity Hotspot Penalty,0.0,0.0,0.0,0.0
+Overall Complexity Score (MTCS),12.21,12.62,-0.41,-3.4

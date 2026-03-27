@@ -1,0 +1,73 @@
+{
+  "export_id": "EXP-20260327-120914",
+  "generated_at": "2026-03-27T12:09:14.050486+00:00",
+  "dataset_id": "0635E937",
+  "transformation_id": "F9E02AFE",
+  "artifacts": [
+    {
+      "name": "target_queue_managers.csv",
+      "type": "target_topology",
+      "records": 3
+    },
+    {
+      "name": "target_applications.csv",
+      "type": "target_topology",
+      "records": 4
+    },
+    {
+      "name": "target_local_queues.csv",
+      "type": "target_topology",
+      "records": 4
+    },
+    {
+      "name": "target_remote_queues.csv",
+      "type": "target_topology",
+      "records": 4
+    },
+    {
+      "name": "target_xmit_queues.csv",
+      "type": "target_topology",
+      "records": 3
+    },
+    {
+      "name": "target_channels.csv",
+      "type": "target_topology",
+      "records": 6
+    },
+    {
+      "name": "target_routes.csv",
+      "type": "target_topology",
+      "records": 4
+    },
+    {
+      "name": "complexity_comparison.csv",
+      "type": "analysis",
+      "records": 7
+    },
+    {
+      "name": "analysis_findings.csv",
+      "type": "analysis",
+      "records": 4
+    },
+    {
+      "name": "transformation_decisions.csv",
+      "type": "analysis",
+      "records": 8
+    },
+    {
+      "name": "target_validation.csv",
+      "type": "validation",
+      "records": 9
+    },
+    {
+      "name": "export_summary.json",
+      "type": "summary",
+      "records": 1
+    },
+    {
+      "name": "transform_summary.json",
+      "type": "summary",
+      "records": 1
+    }
+  ]
+}

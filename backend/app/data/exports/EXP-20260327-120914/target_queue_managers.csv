@@ -1,0 +1,4 @@
+qm_name,qm_type,region,environment,owning_app_count,owning_apps
+QM.BILLING,DEDICATED,US-EAST,PROD,2,BILLING-SVC|ORDER-SVC
+QM.HUB,HUB,EU-WEST,PROD,1,FINANCE-APP
+QM.PAY,SHARED,US-WEST,PROD,1,PAY-SVC

@@ -1,10 +1,12 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.core.constants import API_PREFIX
+from app.core.constants import API_PREFIX, DATA_DIR
 from app.core.logging import get_logger
 from app.utils.file_utils import ensure_data_directories
 from app.api import routes_health, routes_ingest, routes_analysis
@@ -17,6 +19,8 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting %s v%s [%s]", settings.app_name, settings.app_version, settings.environment)
     ensure_data_directories()
+    exports_dir = os.path.join(DATA_DIR, "exports")
+    os.makedirs(exports_dir, exist_ok=True)
     logger.info("Data directories verified.")
     yield
     logger.info("Shutting down %s", settings.app_name)
@@ -44,3 +48,7 @@ app.include_router(routes_transform.router, prefix=API_PREFIX)
 app.include_router(routes_complexity.router, prefix=API_PREFIX)
 app.include_router(routes_explain.router, prefix=API_PREFIX)
 app.include_router(routes_export.router, prefix=API_PREFIX)
+
+_exports_static_dir = os.path.join(DATA_DIR, "exports")
+os.makedirs(_exports_static_dir, exist_ok=True)
+app.mount("/exports", StaticFiles(directory=_exports_static_dir), name="exports")

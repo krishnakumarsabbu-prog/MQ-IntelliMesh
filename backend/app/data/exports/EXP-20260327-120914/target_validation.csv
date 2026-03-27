@@ -1,0 +1,10 @@
+check_name,check_id,status,severity,message
+Every application has an owning Queue Manager,VC-001,PASS,INFO,All 4 application(s) have a valid QM assignment.
+No application connected to multiple Queue Managers,VC-002,PASS,INFO,One-QM-per-application constraint satisfied for all applications.
+Consumer queues are defined as LOCAL queues,VC-003,PASS,INFO,All 4 route(s) use local queues for consumer endpoints.
+Producers route through REMOTE queues for cross-QM flows,VC-004,PASS,INFO,All 4 cross-QM route(s) have corresponding remote queue definitions.
+All inter-QM routes have XMIT queue and sender channel,VC-005,PASS,INFO,All 4 inter-QM routes have complete XMIT and channel support.
+All target queues have valid owning Queue Manager,VC-006,PASS,INFO,All 11 target queue(s) have valid Queue Manager ownership.
+All channels reference valid Queue Manager endpoints,VC-007,PASS,INFO,All 6 channel(s) have valid from_qm and to_qm endpoints.
+XMIT queues have backing SDR channels,VC-008,PASS,INFO,All 3 XMIT queue(s) have a corresponding SDR channel.
+All routes have resolvable queue objects,VC-009,PASS,INFO,All 4 route(s) resolve to valid target queue objects.
