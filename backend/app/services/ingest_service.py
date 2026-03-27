@@ -16,6 +16,7 @@ from app.utils.validation_utils import (
     safe_float,
 )
 from app.utils.graph_utils import build_topology_graph, summarize_graph
+from app.utils.hackathon_normalizer import normalize_hackathon_csv
 
 logger = get_logger(__name__)
 
@@ -26,7 +27,11 @@ _PREVIEW_LIMIT = 5
 
 def ingest_files(file_paths: list[tuple[str, str]]) -> dict[str, Any]:
     """
-    Core ingestion entry point for Phase 7B.
+    Core ingestion entry point.
+
+    Supports both:
+    - Normalized multi-file topology CSVs (queue_managers, queues, applications, channels, relationships)
+    - Denormalized hackathon-format single-CSV inventory files
 
     Args:
         file_paths: list of (original_filename, saved_path) tuples
@@ -39,6 +44,7 @@ def ingest_files(file_paths: list[tuple[str, str]]) -> dict[str, Any]:
     all_errors: list[str] = []
     files_processed = []
     datasets_detected: list[str] = []
+    normalization_notes: list[str] = []
 
     raw_topology: dict[str, list[dict[str, Any]]] = {
         "queue_managers": [],
@@ -50,7 +56,7 @@ def ingest_files(file_paths: list[tuple[str, str]]) -> dict[str, Any]:
     }
 
     for original_filename, saved_path in file_paths:
-        result = _parse_single_file(original_filename, saved_path, raw_topology)
+        result = _parse_single_file(original_filename, saved_path, raw_topology, normalization_notes)
         files_processed.append(result)
         all_warnings.extend(result["warnings"])
         all_errors.extend(result["errors"])
@@ -91,15 +97,22 @@ def ingest_files(file_paths: list[tuple[str, str]]) -> dict[str, Any]:
         "graph_summary": graph_summary,
         "ingested_at": datetime.now(timezone.utc).isoformat(),
         "source_files": [f for f, _ in file_paths],
+        "normalization_notes": normalization_notes,
     }
 
     has_errors = len(all_errors) > 0
+    is_hackathon = "hackathon" in datasets_detected
     status = "partial" if has_errors else "success"
-    message = (
-        "Topology datasets ingested with errors — review error list"
-        if has_errors
-        else "Topology datasets ingested successfully"
-    )
+    if is_hackathon:
+        message = (
+            "Hackathon MQ inventory ingested and normalized — topology model built from denormalized CSV"
+        )
+    else:
+        message = (
+            "Topology datasets ingested with errors — review error list"
+            if has_errors
+            else "Topology datasets ingested successfully"
+        )
 
     logger.info(
         "Ingestion complete [%s]: %d QMs, %d queues, %d apps, %d channels, %d relations",
@@ -122,6 +135,8 @@ def ingest_files(file_paths: list[tuple[str, str]]) -> dict[str, Any]:
         "warnings": all_warnings,
         "errors": all_errors,
         "preview": preview,
+        "normalization_notes": normalization_notes,
+        "source_format": "hackathon_denormalized" if is_hackathon else "normalized_multi_file",
     }
 
 
@@ -129,6 +144,7 @@ def _parse_single_file(
     filename: str,
     path: str,
     raw_topology: dict[str, list[dict[str, Any]]],
+    normalization_notes: list[str],
 ) -> dict[str, Any]:
     file_errors: list[str] = []
     file_warnings: list[str] = []
@@ -154,6 +170,9 @@ def _parse_single_file(
     original_columns = list(df.columns)
     dataset_type = classify_dataset(filename, original_columns)
     logger.info("Classified '%s' as '%s' (%d rows)", filename, dataset_type, len(df))
+
+    if dataset_type == "hackathon":
+        return _parse_hackathon_file(filename, df, original_columns, raw_topology, normalization_notes)
 
     if dataset_type == "unknown":
         file_warnings.append(f"Could not classify '{filename}' — treating as unknown and skipping")
@@ -192,6 +211,73 @@ def _parse_single_file(
         "errors": file_errors,
         "warnings": file_warnings,
     }
+
+
+def _parse_hackathon_file(
+    filename: str,
+    df: pd.DataFrame,
+    original_columns: list[str],
+    raw_topology: dict[str, list[dict[str, Any]]],
+    normalization_notes: list[str],
+) -> dict[str, Any]:
+    file_warnings: list[str] = []
+
+    try:
+        result = normalize_hackathon_csv(df)
+
+        raw_topology["queue_managers"].extend(result["queue_managers"])
+        raw_topology["queues"].extend(result["queues"])
+        raw_topology["applications"].extend(result["applications"])
+        raw_topology["channels"].extend(result["channels"])
+        raw_topology["relationships"].extend(result["relationships"])
+        raw_topology["metadata"].extend(result["metadata"])
+
+        normalization_notes.extend(result.get("normalization_notes", []))
+        file_warnings.extend(result.get("warnings", []))
+
+        logger.info(
+            "Hackathon CSV '%s' normalized: %d QMs, %d queues, %d apps, %d relationships",
+            filename,
+            len(result["queue_managers"]),
+            len(result["queues"]),
+            len(result["applications"]),
+            len(result["relationships"]),
+        )
+
+        return {
+            "filename": filename,
+            "dataset_type": "hackathon",
+            "row_count": len(df),
+            "columns_detected": original_columns,
+            "columns_normalized": [
+                "discrete_queue_name", "q_manager_name", "q_type",
+                "producername", "consumername", "app_id",
+                "remote_q_mgr_name", "remote_q_name", "xmit_q_name",
+                "primaryapprole", "line_of_business", "neighborhood",
+            ],
+            "errors": [],
+            "warnings": file_warnings,
+            "normalization_summary": {
+                "source_format": "hackathon_denormalized",
+                "queue_managers_inferred": len(result["queue_managers"]),
+                "queues_extracted": len(result["queues"]),
+                "applications_inferred": len(result["applications"]),
+                "relationships_reconstructed": len(result["relationships"]),
+            },
+        }
+
+    except Exception as e:
+        msg = f"Hackathon normalization failed for '{filename}': {e}"
+        logger.error(msg)
+        return {
+            "filename": filename,
+            "dataset_type": "hackathon",
+            "row_count": len(df),
+            "columns_detected": original_columns,
+            "columns_normalized": original_columns,
+            "errors": [msg],
+            "warnings": [],
+        }
 
 
 def _parse_records(df: pd.DataFrame, dataset_type: str) -> list[dict[str, Any]]:

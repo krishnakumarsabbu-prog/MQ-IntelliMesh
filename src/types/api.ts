@@ -37,6 +37,8 @@ export interface IngestResponse {
   applications: number
   channels: number
   relationships: number
+  normalization_notes?: string[]
+  source_format?: string
 }
 
 export interface AnalysisFinding {

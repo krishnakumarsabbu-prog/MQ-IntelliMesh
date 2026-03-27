@@ -49,6 +49,8 @@ class IngestResponse(BaseModel):
     warnings: list[str] = []
     errors: list[str] = []
     preview: IngestPreview = IngestPreview()
+    normalization_notes: list[str] = []
+    source_format: Optional[str] = None
 
 
 class IngestValidationResult(BaseModel):

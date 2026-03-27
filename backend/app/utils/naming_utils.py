@@ -18,6 +18,7 @@ _FILENAME_HINTS: dict[str, list[str]] = {
     "channels": ["channel", "channels"],
     "relationships": ["relationship", "relationships", "relation", "producer", "consumer", "flow"],
     "metadata": ["metadata", "meta", "environment", "region", "neighborhood"],
+    "hackathon": ["hackathon"],
 }
 
 _CANONICAL_COLUMN_MAP: dict[str, dict[str, str]] = {
@@ -161,6 +162,10 @@ def classify_dataset(filename: str, columns: list[str]) -> str:
         for hint in hints:
             if hint in fname_stem:
                 return dataset_type
+
+    from app.utils.hackathon_normalizer import is_hackathon_format
+    if is_hackathon_format(columns):
+        return "hackathon"
 
     norm_cols = {normalize_header(c) for c in columns}
 

@@ -11,6 +11,8 @@ import {
   Database,
   ChevronRight,
   RefreshCw,
+  Sparkles,
+  Info,
 } from 'lucide-react'
 import { useIngest } from '../../context/IngestContext'
 
@@ -37,7 +39,7 @@ function StatCard({ label, value, icon: Icon, color, bgColor, delay = 0 }: StatC
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4, ease: 'easeOut' }}
-      className="bg-[#111827] border border-slate-800/60 rounded-xl p-4"
+      className="bg-[#0A0F1E] border border-slate-800/60 rounded-xl p-4"
     >
       <div className="flex items-center gap-3 mb-2">
         <div className={`w-8 h-8 rounded-lg ${bgColor} flex items-center justify-center`}>
@@ -59,6 +61,9 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
 
   if (!result) return null
 
+  const isHackathon = result.source_format === 'hackathon_denormalized' ||
+    result.files_processed?.some(f => f.dataset_type === 'hackathon')
+
   const stats = [
     { label: 'Queue Managers', value: result.queue_managers, icon: Server, color: 'text-cyan-400', bgColor: 'bg-cyan-500/10' },
     { label: 'Queues', value: result.queues, icon: Layers, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
@@ -73,12 +78,14 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
     ...(result.files_processed ?? []).flatMap(f => f.warnings ?? []),
   ]
 
+  const normalizationNotes = result.normalization_notes ?? []
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="bg-[#0F172A] border border-emerald-500/20 rounded-2xl overflow-hidden"
+      className="bg-[#080D18] border border-emerald-500/20 rounded-2xl overflow-hidden"
     >
       <div className="px-6 py-5 border-b border-slate-800/40">
         <div className="flex items-start justify-between">
@@ -87,8 +94,27 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
               <CheckCircle2 className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-[15px] font-semibold text-white">MQ Inventory Loaded</h2>
-              <p className="text-[12px] text-slate-500 mt-0.5">Estate model built and ready for analysis</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-[15px] font-bold text-white">
+                  {isHackathon ? 'MQ Inventory Normalized & Loaded' : 'MQ Inventory Loaded'}
+                </h2>
+                {isHackathon && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20"
+                  >
+                    <Sparkles className="w-2.5 h-2.5 text-blue-400" />
+                    <span className="text-[10px] font-bold text-blue-300">AI Normalized</span>
+                  </motion.div>
+                )}
+              </div>
+              <p className="text-[12px] text-slate-500 mt-0.5">
+                {isHackathon
+                  ? 'Denormalized hackathon inventory parsed — canonical topology model extracted from single CSV'
+                  : 'Estate model built and ready for analysis'}
+              </p>
             </div>
           </div>
           <button
@@ -100,24 +126,26 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
           </button>
         </div>
 
-        {ingestedAt && (
-          <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/8 border border-emerald-500/15">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[11px] font-medium text-emerald-400">Ingestion Complete</span>
-            </div>
+        <div className="flex items-center gap-3 mt-4 flex-wrap">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/8 border border-emerald-500/15">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[11px] font-semibold text-emerald-400">
+              {isHackathon ? 'Normalization Complete' : 'Ingestion Complete'}
+            </span>
+          </div>
+          {ingestedAt && (
             <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-mono">
               <Clock className="w-3 h-3" />
               <span>{formatDate(ingestedAt)} at {formatTime(ingestedAt)}</span>
             </div>
-            {result.dataset_id && (
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-mono">
-                <Database className="w-3 h-3" />
-                <span className="truncate max-w-[160px]">{result.dataset_id}</span>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+          {result.dataset_id && (
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-mono">
+              <Database className="w-3 h-3" />
+              <span className="truncate max-w-[160px]">{result.dataset_id}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="p-6 space-y-5">
@@ -126,6 +154,30 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
             <StatCard key={s.label} {...s} delay={i * 0.06} />
           ))}
         </div>
+
+        {isHackathon && normalizationNotes.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-4"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Info className="w-3.5 h-3.5 text-blue-400" />
+              <span className="text-[11px] font-bold text-blue-300 uppercase tracking-wider">
+                Normalization Intelligence
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {normalizationNotes.map((note, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-blue-600 text-[10px] mt-0.5 flex-shrink-0">→</span>
+                  <span className="text-[12px] text-blue-300/80">{note}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {result.files_processed && result.files_processed.length > 0 && (
           <div className="bg-slate-800/20 border border-slate-800/50 rounded-xl p-4">
@@ -144,7 +196,13 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
                 >
                   <ChevronRight className="w-3 h-3 text-slate-700 flex-shrink-0" />
                   <span className="text-[12px] font-mono text-slate-400 flex-1">{f.filename}</span>
-                  <span className="text-[11px] font-mono text-slate-600">{f.dataset_type}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    f.dataset_type === 'hackathon'
+                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/15'
+                      : 'bg-slate-800/50 text-slate-500 border border-slate-700/30'
+                  }`}>
+                    {f.dataset_type === 'hackathon' ? 'hackathon · normalized' : f.dataset_type}
+                  </span>
                   <span className="text-[11px] font-mono text-blue-400 tabular-nums">{f.rows.toLocaleString()} rows</span>
                 </motion.div>
               ))}
@@ -162,7 +220,7 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
               <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
-                {warnings.length} Warning{warnings.length > 1 ? 's' : ''}
+                {warnings.length} Data Quality Warning{warnings.length > 1 ? 's' : ''}
               </span>
             </div>
             <div className="space-y-1">
@@ -187,8 +245,10 @@ export default function IngestResultsPanel({ onReingest }: IngestResultsPanelPro
         >
           <div className="flex items-center gap-2.5">
             <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            <span className="text-[13px] font-medium text-blue-300">
-              Estate model ready — run analysis to surface findings
+            <span className="text-[13px] font-semibold text-blue-300">
+              {isHackathon
+                ? 'Canonical topology model ready — run analysis to surface real findings from your estate'
+                : 'Estate model ready — run analysis to surface findings'}
             </span>
           </div>
           <ChevronRight className="w-4 h-4 text-blue-500/50" />
