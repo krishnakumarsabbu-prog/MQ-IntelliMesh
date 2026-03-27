@@ -132,3 +132,123 @@ def get_graph_preview(G: nx.DiGraph, limit: int = 10) -> list[dict[str, Any]]:
         {"node": n, **{k: v for k, v in d.items() if v is not None}}
         for n, d in list(G.nodes(data=True))[:limit]
     ]
+
+
+def get_nodes_by_type(G: nx.DiGraph, node_type: str) -> list[str]:
+    return [n for n, d in G.nodes(data=True) if d.get("node_type") == node_type]
+
+
+def get_in_degree_map(G: nx.DiGraph, node_type: str | None = None) -> dict[str, int]:
+    result = {}
+    for node, deg in G.in_degree():
+        if node_type is None or G.nodes[node].get("node_type") == node_type:
+            result[node] = deg
+    return result
+
+
+def get_out_degree_map(G: nx.DiGraph, node_type: str | None = None) -> dict[str, int]:
+    result = {}
+    for node, deg in G.out_degree():
+        if node_type is None or G.nodes[node].get("node_type") == node_type:
+            result[node] = deg
+    return result
+
+
+def get_total_degree_map(G: nx.DiGraph, node_type: str | None = None) -> dict[str, int]:
+    result = {}
+    undirected = G.to_undirected()
+    for node, deg in undirected.degree():
+        if node_type is None or G.nodes[node].get("node_type") == node_type:
+            result[node] = deg
+    return result
+
+
+def detect_cycles(G: nx.DiGraph) -> list[list[str]]:
+    try:
+        return list(nx.simple_cycles(G))
+    except Exception:
+        return []
+
+
+def find_duplicate_qm_pairs(G: nx.DiGraph) -> list[tuple[str, str, int]]:
+    pair_counts: dict[tuple[str, str], int] = {}
+    for u, v, data in G.edges(data=True):
+        if data.get("edge_type") == EDGE_CHANNEL_TO:
+            key = (u, v)
+            pair_counts[key] = pair_counts.get(key, 0) + 1
+    return [(u, v, count) for (u, v), count in pair_counts.items() if count > 1]
+
+
+def get_neighborhood_sizes(G: nx.DiGraph, node_type: str) -> dict[str, int]:
+    result = {}
+    for node in get_nodes_by_type(G, node_type):
+        neighbors = set(G.predecessors(node)) | set(G.successors(node))
+        result[node] = len(neighbors)
+    return result
+
+
+def get_app_to_qm_connections(G: nx.DiGraph) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for app in get_nodes_by_type(G, NODE_TYPE_APP):
+        connected_qms = [
+            n for n in G.successors(app)
+            if G.nodes[n].get("node_type") == NODE_TYPE_QM
+        ]
+        if connected_qms:
+            result[app] = connected_qms
+    return result
+
+
+def get_orphan_queues(G: nx.DiGraph) -> list[str]:
+    orphans = []
+    for queue in get_nodes_by_type(G, NODE_TYPE_QUEUE):
+        predecessors = list(G.predecessors(queue))
+        successors = list(G.successors(queue))
+        has_producer = any(
+            G.nodes[p].get("node_type") == NODE_TYPE_APP
+            for p in predecessors
+        )
+        has_consumer = any(
+            G.nodes[s].get("node_type") == NODE_TYPE_APP
+            for s in successors
+        )
+        is_owned = any(
+            G.has_edge(p, queue) and G.edges[p, queue].get("edge_type") == EDGE_OWNS_QUEUE
+            for p in predecessors
+        )
+        if is_owned and not has_producer and not has_consumer:
+            orphans.append(queue)
+    return orphans
+
+
+def get_qm_app_ownership(G: nx.DiGraph) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for qm in get_nodes_by_type(G, NODE_TYPE_QM):
+        connected_apps = [
+            n for n in G.predecessors(qm)
+            if G.nodes[n].get("node_type") == NODE_TYPE_APP
+        ]
+        result[qm] = connected_apps
+    return result
+
+
+def get_routing_path_lengths(G: nx.DiGraph) -> list[dict[str, Any]]:
+    apps = get_nodes_by_type(G, NODE_TYPE_APP)
+    paths = []
+    undirected = G.to_undirected()
+    for i, src in enumerate(apps):
+        for dst in apps[i + 1:]:
+            try:
+                length = nx.shortest_path_length(undirected, src, dst)
+                if length > 0:
+                    paths.append({"source": src, "target": dst, "hops": length})
+            except nx.NetworkXNoPath:
+                pass
+    return paths
+
+
+def get_centrality_scores(G: nx.DiGraph) -> dict[str, float]:
+    try:
+        return nx.betweenness_centrality(G, normalized=True)
+    except Exception:
+        return {}

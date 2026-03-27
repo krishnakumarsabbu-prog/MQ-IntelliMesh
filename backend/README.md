@@ -126,13 +126,55 @@ Examples of accepted variations:
 
 ---
 
+## Recommended Workflow
+
+### Step 1 — Ingest topology CSV files
+
+```bash
+curl -X POST http://localhost:8000/api/ingest \
+  -F "files=@queue_managers.csv" \
+  -F "files=@queues.csv" \
+  -F "files=@applications.csv" \
+  -F "files=@channels.csv" \
+  -F "files=@relationships.csv"
+```
+
+### Step 2 — Run as-is analysis
+
+```bash
+curl http://localhost:8000/api/analyze
+```
+
+Or with a specific dataset ID:
+
+```bash
+curl "http://localhost:8000/api/analyze?dataset_id=A1B2C3D4"
+```
+
+The analysis engine produces structured findings covering:
+
+| Check | Category |
+|-------|----------|
+| Multi-QM application connections | Policy Violation |
+| Orphan queues (no producer/consumer) | Topology Waste |
+| Unused / unmapped Queue Managers | Simplification Opportunity / Governance Drift |
+| Redundant channels between same QM pair | Topology Waste |
+| Excessive routing hop depth | Routing Risk |
+| Fan-in / fan-out hotspots | Operational Risk |
+| Directed cycles in topology graph | Structural Risk |
+| Unresolved cross-dataset references | Data Quality |
+| Policy drift and application concentration | Governance Drift |
+| High-centrality single points of failure | Operational Risk |
+
+---
+
 ## Implementation Phases
 
 | Phase | Scope |
 |-------|-------|
 | 7A | Backend skeleton, routes, schemas, service stubs |
-| 7B (current) | CSV ingestion + canonical model + graph builder |
-| 7C | Findings engine — compliance rules, orphan detection |
+| 7B | CSV ingestion + canonical model + graph builder |
+| 7C (current) | Findings engine — 10 check categories, health scoring, hotspot detection |
 | 7D | Target-state transformation engine + MTCS scoring |
 | 7E | Explainability + decision trace |
 | 7F | Artifact export generation |
