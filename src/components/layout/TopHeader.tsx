@@ -1,5 +1,7 @@
 import { useLocation } from 'react-router-dom'
-import { Search, Bell, HelpCircle, Cpu, ChevronDown } from 'lucide-react'
+import { Search, Bell, HelpCircle, Cpu, ChevronDown, Activity, WifiOff, Loader2 } from 'lucide-react'
+import { useApiHealth } from '../../hooks/useApiHealth'
+import type { BackendStatus } from '../../hooks/useApiHealth'
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Platform Overview & AI Intelligence' },
@@ -12,9 +14,50 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/exports': { title: 'Exports', subtitle: 'Automation-Ready Artifacts' },
 }
 
+function BackendIndicator({ status, onRetry }: { status: BackendStatus; onRetry: () => void }) {
+  if (status === 'checking') {
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/40 border border-slate-700/50 mr-2">
+        <Loader2 className="w-3 h-3 text-slate-400 animate-spin" />
+        <span className="text-[11px] font-medium text-slate-400">Connecting…</span>
+      </div>
+    )
+  }
+
+  if (status === 'online') {
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mr-2" title="Backend API online">
+        <Activity className="w-3 h-3 text-emerald-400" />
+        <span className="text-[11px] font-medium text-emerald-400">API Online</span>
+      </div>
+    )
+  }
+
+  if (status === 'degraded') {
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 mr-2" title="Backend API degraded">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        <span className="text-[11px] font-medium text-amber-400">API Degraded</span>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={onRetry}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 mr-2 hover:bg-rose-500/15 transition-colors"
+      title="Backend offline — click to retry"
+    >
+      <WifiOff className="w-3 h-3 text-rose-400" />
+      <span className="text-[11px] font-medium text-rose-400">API Offline</span>
+    </button>
+  )
+}
+
 export default function TopHeader() {
   const location = useLocation()
   const page = pageTitles[location.pathname] || { title: 'MQ IntelliMesh', subtitle: '' }
+  const { backendStatus, retry } = useApiHealth()
 
   return (
     <header className="h-14 bg-[#0F172A]/95 backdrop-blur-sm border-b border-slate-800/60 flex items-center px-6 gap-4 sticky top-0 z-30">
@@ -37,14 +80,11 @@ export default function TopHeader() {
       </div>
 
       <div className="flex items-center gap-1">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mr-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[11px] font-medium text-emerald-400">Demo Environment</span>
-        </div>
+        <BackendIndicator status={backendStatus} onRetry={retry} />
 
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 mr-2">
-          <Cpu className="w-3 h-3 text-violet-400" />
-          <span className="text-[11px] font-medium text-violet-300">AI Active</span>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 mr-2">
+          <Cpu className="w-3 h-3 text-blue-400" />
+          <span className="text-[11px] font-medium text-blue-300">AI Active</span>
         </div>
 
         <button className="relative w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
