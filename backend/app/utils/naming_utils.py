@@ -201,3 +201,37 @@ def suggest_canonical_name(raw_name: str, object_type: str = "QUEUE") -> str:
 
 def count_naming_violations(names: list[str]) -> int:
     return sum(1 for n in names if not is_canonical_name(n))
+
+
+def _sanitize(name: str) -> str:
+    return name.upper().replace(" ", "_").replace("-", "_").replace(".", "_")
+
+
+def local_queue_name(consumer_app: str, base_queue: str) -> str:
+    app = _sanitize(consumer_app)[:20]
+    q = _sanitize(base_queue)[:20]
+    return f"LQ.{app}.{q}"
+
+
+def remote_queue_name(consumer_app: str, base_queue: str) -> str:
+    app = _sanitize(consumer_app)[:20]
+    q = _sanitize(base_queue)[:20]
+    return f"RQ.{app}.{q}"
+
+
+def xmit_queue_name(source_qm: str, target_qm: str) -> str:
+    src = _sanitize(source_qm)[:20]
+    tgt = _sanitize(target_qm)[:20]
+    return f"XMIT.{src}.{tgt}"
+
+
+def sender_channel_name(from_qm: str, to_qm: str) -> str:
+    src = _sanitize(from_qm)[:15]
+    tgt = _sanitize(to_qm)[:15]
+    return f"{src}.{tgt}.SDR"
+
+
+def receiver_channel_name(to_qm: str, from_qm: str) -> str:
+    tgt = _sanitize(to_qm)[:15]
+    src = _sanitize(from_qm)[:15]
+    return f"{tgt}.{src}.RCVR"

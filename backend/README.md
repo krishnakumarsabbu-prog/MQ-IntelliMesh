@@ -168,14 +168,46 @@ The analysis engine produces structured findings covering:
 
 ---
 
+### Step 3 — Generate target-state topology
+
+```bash
+curl -X POST http://localhost:8000/api/transform \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Or with a specific dataset:
+
+```bash
+curl -X POST http://localhost:8000/api/transform \
+  -H "Content-Type: application/json" \
+  -d '{"dataset_id": "A1B2C3D4"}'
+```
+
+**Generated target objects:**
+
+- `LQ.<consumer_app>.<queue>` — local queues for consumers
+- `RQ.<consumer_app>.<queue>` — remote queues for producers
+- `XMIT.<from_qm>.<to_qm>` — transmission queues
+- `<fromQM>.<toQM>.SDR` — sender channels
+- `<toQM>.<fromQM>.RCVR` — receiver channels
+
+The response includes:
+- `target_topology` — all generated MQ objects
+- `decisions` — explainable decision record for every transformation action
+- `validation` — compliance checks with pass/fail/warning breakdown
+- `complexity` — before/after MTCS score with dimension-level breakdown and reduction percentage
+
+---
+
 ## Implementation Phases
 
 | Phase | Scope |
 |-------|-------|
 | 7A | Backend skeleton, routes, schemas, service stubs |
 | 7B | CSV ingestion + canonical model + graph builder |
-| 7C (current) | Findings engine — 10 check categories, health scoring, hotspot detection |
-| 7D | Target-state transformation engine + MTCS scoring |
+| 7C | Findings engine — 10 check categories, health scoring, hotspot detection |
+| 7D (current) | Target-state transformation + MTCS complexity scoring + validation engine |
 | 7E | Explainability + decision trace |
 | 7F | Artifact export generation |
 

@@ -2,3 +2,4 @@ app_id,connected_qm,role
 BILLING-SVC,QM.BILLING,producer
 PAY-SVC,QM.PAY,consumer
 FINANCE-APP,QM.HUB,both
+ORDER-SVC,QM.BILLING,producer
