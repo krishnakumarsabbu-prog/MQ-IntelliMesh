@@ -1,128 +1,403 @@
+import { useState, useCallback, useMemo } from 'react'
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  MiniMap,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
+  BackgroundVariant,
+  type Node,
+  type NodeMouseHandler,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { motion } from 'framer-motion'
-import { Network, Server, ArrowLeftRight, Layers, Filter, RefreshCw, ZoomIn } from 'lucide-react'
-import PageContainer from '../components/ui/PageContainer'
-import StatusBadge from '../components/ui/StatusBadge'
+import { Network, Server, Layers, ArrowLeftRight, ShieldAlert, AppWindow } from 'lucide-react'
 
-const queueManagers = [
-  { id: 'HUB-QM-01', type: 'Hub', queues: 68, channels: 42, apps: 18, status: 'healthy', risk: 'high' },
-  { id: 'HUB-QM-02', type: 'Hub', queues: 54, channels: 38, apps: 14, status: 'healthy', risk: 'high' },
-  { id: 'APP-QM-01', type: 'Application', queues: 24, channels: 12, apps: 6, status: 'healthy', risk: 'medium' },
-  { id: 'APP-QM-02', type: 'Application', queues: 18, channels: 9, apps: 4, status: 'degraded', risk: 'medium' },
-  { id: 'SVC-QM-01', type: 'Service', queues: 12, channels: 6, apps: 3, status: 'healthy', risk: 'low' },
-  { id: 'SVC-QM-02', type: 'Service', queues: 9, channels: 4, apps: 2, status: 'healthy', risk: 'low' },
-  { id: 'SVC-QM-03', type: 'Service', queues: 15, channels: 7, apps: 4, status: 'healthy', risk: 'low' },
-  { id: 'INT-QM-01', type: 'Integration', queues: 31, channels: 19, apps: 9, status: 'warning', risk: 'medium' },
+import {
+  initialNodes,
+  initialEdges,
+  summaryStats,
+  intelligenceHighlights,
+  type QueueNodeData,
+  type TopologyFiltersState,
+} from '../data/topologyData'
+
+import AppNode from '../components/topology/AppNode'
+import QueueManagerNode from '../components/topology/QueueManagerNode'
+import QueueNode from '../components/topology/QueueNode'
+import NodeInspectionDrawer from '../components/topology/NodeInspectionDrawer'
+import IntelligencePanel from '../components/topology/IntelligencePanel'
+import TopologyLegend from '../components/topology/TopologyLegend'
+import TopologyFilterBar, { type TopologyFilters } from '../components/topology/TopologyFilterBar'
+import MetricCard from '../components/ui/MetricCard'
+
+const nodeTypes = {
+  app: AppNode,
+  queueManager: QueueManagerNode,
+  queue: QueueNode,
+}
+
+const DEFAULT_FILTERS: TopologyFilters = {
+  search: '',
+  nodeType: 'all',
+  queueSubtype: 'all',
+  risk: 'all',
+  showViolationsOnly: false,
+  showOrphansOnly: false,
+}
+
+const ORPHAN_IDS = new Set(['q-orphan'])
+const VIOLATION_IDS = new Set(['qm-payments', 'qm-hub', 'app-payments', 'q-orders-in', 'q-xmit-hub-pay'])
+
+type RFNode = Node<Record<string, unknown>>
+
+function filterNodes(nodes: RFNode[], filters: TopologyFilters): RFNode[] {
+  return nodes.filter((node) => {
+    const d = node.data as TopologyFiltersState
+
+    if (filters.search) {
+      const q = filters.search.toLowerCase()
+      if (!String(d.label ?? '').toLowerCase().includes(q)) return false
+    }
+
+    if (filters.nodeType !== 'all' && node.type !== filters.nodeType) return false
+
+    if (filters.queueSubtype !== 'all') {
+      if (node.type !== 'queue') return false
+      if ((d.subtype as string) !== filters.queueSubtype) return false
+    }
+
+    if (filters.risk !== 'all') {
+      const r = d.risk as string
+      const matchLow = filters.risk === 'low' && (r === 'none' || r === 'low')
+      if (r !== filters.risk && !matchLow) return false
+    }
+
+    if (filters.showViolationsOnly && !VIOLATION_IDS.has(node.id)) return false
+    if (filters.showOrphansOnly && !ORPHAN_IDS.has(node.id)) return false
+
+    return true
+  })
+}
+
+function getConnectedNodeIds(nodeId: string): string[] {
+  return initialEdges
+    .filter((e) => e.source === nodeId || e.target === nodeId)
+    .map((e) => (e.source === nodeId ? e.target : e.source))
+}
+
+function TopologyCanvas() {
+  const reactFlowInstance = useReactFlow()
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes as RFNode[])
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges)
+  const [selectedNode, setSelectedNode] = useState<RFNode | null>(null)
+  const [filters, setFilters] = useState<TopologyFilters>(DEFAULT_FILTERS)
+
+  const filteredNodes = useMemo(() => filterNodes(nodes, filters), [nodes, filters])
+  const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes])
+  const filteredEdges = useMemo(
+    () => edges.filter((e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target)),
+    [edges, filteredNodeIds]
+  )
+
+  const connectedNodeIds = useMemo(
+    () => (selectedNode ? getConnectedNodeIds(selectedNode.id) : []),
+    [selectedNode]
+  )
+
+  const styledNodes = useMemo(() => {
+    if (!selectedNode) return filteredNodes
+    const connected = new Set(connectedNodeIds)
+    connected.add(selectedNode.id)
+    return filteredNodes.map((n) => ({
+      ...n,
+      style: { opacity: connected.has(n.id) ? 1 : 0.18 },
+    }))
+  }, [filteredNodes, selectedNode, connectedNodeIds])
+
+  const styledEdges = useMemo(() => {
+    if (!selectedNode) return filteredEdges
+    return filteredEdges.map((e) => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity: e.source === selectedNode.id || e.target === selectedNode.id ? 1 : 0.05,
+        strokeWidth:
+          e.source === selectedNode.id || e.target === selectedNode.id
+            ? ((e.style?.strokeWidth as number) || 1.5) + 1
+            : e.style?.strokeWidth,
+      },
+    }))
+  }, [filteredEdges, selectedNode])
+
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      const rfNode = node as RFNode
+      setSelectedNode((prev) => (prev?.id === rfNode.id ? null : rfNode))
+      setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === rfNode.id })))
+    },
+    [setNodes]
+  )
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null)
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: false, style: {} })))
+  }, [setNodes])
+
+  const onFitView = useCallback(() => {
+    reactFlowInstance.fitView({ padding: 0.1, duration: 500 })
+  }, [reactFlowInstance])
+
+  const onCenter = useCallback(() => {
+    reactFlowInstance.fitView({ padding: 0.2, duration: 500 })
+  }, [reactFlowInstance])
+
+  const onReset = useCallback(() => {
+    setFilters(DEFAULT_FILTERS)
+    setSelectedNode(null)
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: false, style: {} })))
+  }, [setNodes])
+
+  return (
+    <div className="relative flex-1 flex flex-col min-h-0">
+      <TopologyFilterBar
+        filters={filters}
+        onChange={setFilters}
+        onFitView={onFitView}
+        onCenter={onCenter}
+        onReset={onReset}
+      />
+
+      <div className="relative flex-1">
+        <ReactFlow
+          nodes={styledNodes}
+          edges={styledEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.08 }}
+          minZoom={0.2}
+          maxZoom={2.5}
+          defaultEdgeOptions={{ type: 'smoothstep' }}
+          proOptions={{ hideAttribution: true }}
+          style={{ background: '#0B1020' }}
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={24}
+            size={1}
+            color="#1E293B"
+          />
+          <Controls showFitView showZoom showInteractive={false} />
+          <MiniMap
+            nodeColor={(n) => {
+              if (n.type === 'app') return '#3B82F6'
+              if (n.type === 'queueManager') return '#06B6D4'
+              if (n.type === 'queue') {
+                const d = n.data as QueueNodeData
+                if (d.subtype === 'remote') return '#8B5CF6'
+                if (d.subtype === 'xmitq') return '#F59E0B'
+                return '#14B8A6'
+              }
+              return '#475569'
+            }}
+            maskColor="rgba(11,16,32,0.8)"
+            style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: 12, width: 140, height: 90 }}
+          />
+        </ReactFlow>
+
+        <div className="absolute bottom-4 left-4 z-10">
+          <TopologyLegend />
+        </div>
+
+        {selectedNode && (
+          <NodeInspectionDrawer
+            node={selectedNode}
+            onClose={() => {
+              setSelectedNode(null)
+              setNodes((nds) => nds.map((n) => ({ ...n, selected: false, style: {} })))
+            }}
+            connectedNodeIds={connectedNodeIds}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+const metricCards = [
+  {
+    label: 'Applications',
+    value: summaryStats.applications,
+    delta: '+1 new',
+    deltaType: 'up' as const,
+    hint: '2 multi-QM apps',
+    icon: AppWindow,
+    iconColor: 'text-blue-400',
+    iconBg: 'bg-blue-500/10',
+  },
+  {
+    label: 'Queue Managers',
+    value: summaryStats.queueManagers,
+    delta: 'stable',
+    deltaType: 'neutral' as const,
+    hint: '2 hub-class QMs',
+    icon: Server,
+    iconColor: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/10',
+  },
+  {
+    label: 'Queues',
+    value: summaryStats.queues,
+    delta: '+3',
+    deltaType: 'up' as const,
+    hint: '1 orphaned object',
+    icon: Layers,
+    iconColor: 'text-teal-400',
+    iconBg: 'bg-teal-500/10',
+  },
+  {
+    label: 'Channels',
+    value: summaryStats.channels,
+    delta: '+18',
+    deltaType: 'up' as const,
+    hint: '13 redundant',
+    icon: ArrowLeftRight,
+    iconColor: 'text-violet-400',
+    iconBg: 'bg-violet-500/10',
+  },
+  {
+    label: 'Risk Hotspots',
+    value: summaryStats.riskHotspots,
+    delta: '+1',
+    deltaType: 'up' as const,
+    hint: 'critical severity',
+    icon: ShieldAlert,
+    iconColor: 'text-rose-400',
+    iconBg: 'bg-rose-500/10',
+  },
+  {
+    label: 'Multi-QM Apps',
+    value: summaryStats.multiQMApps,
+    delta: 'stable',
+    deltaType: 'neutral' as const,
+    hint: 'tight coupling risk',
+    icon: Network,
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/10',
+  },
 ]
 
 export default function AsIsTopology() {
   return (
-    <PageContainer>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-white">As-Is Topology</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Current IBM MQ estate — 847 objects discovered across 47 queue managers</p>
+    <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
+      <div className="flex-shrink-0 px-6 pt-5 pb-4">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-white">As-Is Topology Explorer</h2>
+          <p className="text-[13px] text-slate-500 mt-0.5">
+            Explore the current MQ environment, relationships, structural risks, and policy violations.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-2 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-slate-400 text-sm rounded-lg transition-all">
-            <Filter className="w-3.5 h-3.5" />
-            <span>Filter</span>
-          </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-slate-400 text-sm rounded-lg transition-all">
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Re-scan</span>
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-blue-500/20">
-            <ZoomIn className="w-3.5 h-3.5" />
-            <span>Visualize</span>
-          </button>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+          {metricCards.map((card, i) => (
+            <MetricCard key={card.label} {...card} delay={i * 0.05} />
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Queue Managers', value: 47, icon: Server, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-          { label: 'Total Queues', value: '1,247', icon: Layers, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-          { label: 'Active Channels', value: 312, icon: ArrowLeftRight, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-          { label: 'Connected Apps', value: 134, icon: Network, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-        ].map((stat, i) => {
-          const Icon = stat.icon
-          return (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07 }}
-              className="bg-[#111827] border border-slate-800/60 rounded-xl p-4 flex items-center gap-4"
-            >
-              <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center flex-shrink-0`}>
-                <Icon className={`w-5 h-5 ${stat.color}`} />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-white tabular-nums">{stat.value}</div>
-                <div className="text-[12px] text-slate-500">{stat.label}</div>
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
+      <div className="flex flex-1 gap-4 px-6 pb-5 min-h-0">
+        <div className="flex-1 bg-[#0B1020] border border-slate-800/60 rounded-2xl overflow-hidden flex flex-col shadow-2xl min-w-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60 bg-[#0F172A]/90 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[12px] font-semibold text-slate-300">Live Topology Canvas</span>
+              <span className="text-[10px] font-mono text-slate-600">· Click any node to inspect</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-slate-600">
+                {initialNodes.length} nodes · {initialEdges.length} edges
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-violet-500/10 border border-violet-500/20 text-violet-300">
+                AI Analysis Active
+              </span>
+            </div>
+          </div>
 
-      <div className="bg-[#111827] border border-slate-800/60 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
-          <h3 className="text-[14px] font-semibold text-white">Queue Manager Inventory</h3>
-          <span className="text-[11px] text-slate-500 font-mono">Showing 8 of 47</span>
+          <ReactFlowProvider>
+            <TopologyCanvas />
+          </ReactFlowProvider>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-800/60">
-                {['Queue Manager ID', 'Type', 'Queues', 'Channels', 'Connected Apps', 'Status', 'Risk Level'].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {queueManagers.map((qm, i) => (
-                <motion.tr
-                  key={qm.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.04 + 0.2 }}
-                  className="border-b border-slate-800/40 hover:bg-slate-800/20 transition-colors cursor-pointer group"
-                >
-                  <td className="px-5 py-3.5">
-                    <span className="font-mono text-[12px] text-blue-400 group-hover:text-blue-300 transition-colors">{qm.id}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[12px] text-slate-400">{qm.type}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] font-semibold text-white tabular-nums">{qm.queues}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] font-semibold text-white tabular-nums">{qm.channels}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-slate-300 tabular-nums">{qm.apps}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <StatusBadge
-                      label={qm.status}
-                      variant={qm.status === 'healthy' ? 'success' : qm.status === 'degraded' ? 'critical' : 'warning'}
-                      dot
-                    />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <StatusBadge
-                      label={qm.risk}
-                      variant={qm.risk === 'high' ? 'critical' : qm.risk === 'medium' ? 'warning' : 'success'}
-                    />
-                  </td>
-                </motion.tr>
+
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="w-72 flex-shrink-0 flex flex-col gap-4 overflow-y-auto"
+        >
+          <IntelligencePanel highlights={intelligenceHighlights} />
+
+          <div className="bg-[#0F172A] border border-slate-800/60 rounded-xl p-4">
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Quick Stats</div>
+            <div className="space-y-2.5">
+              {[
+                { label: 'Healthy nodes', value: '14', color: 'text-emerald-400' },
+                { label: 'At-risk nodes', value: '7', color: 'text-amber-400' },
+                { label: 'Critical nodes', value: '3', color: 'text-rose-400' },
+                { label: 'Orphan objects', value: '1', color: 'text-slate-400' },
+              ].map((s) => (
+                <div key={s.label} className="flex items-center justify-between">
+                  <span className="text-[12px] text-slate-500">{s.label}</span>
+                  <span className={`text-[13px] font-bold tabular-nums ${s.color}`}>{s.value}</span>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-slate-800/50">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] text-slate-600">Estate Health</span>
+                <span className="text-[11px] font-bold text-amber-400">74%</span>
+              </div>
+              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: '74%' }}
+                  transition={{ duration: 1.2, delay: 0.6 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#0F172A] border border-slate-800/60 rounded-xl p-4">
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Node Distribution</div>
+            {[
+              { label: 'Applications', count: 5, color: 'bg-blue-500' },
+              { label: 'Queue Managers', count: 4, color: 'bg-cyan-500' },
+              { label: 'Local Queues', count: 7, color: 'bg-teal-500' },
+              { label: 'Remote Queues', count: 2, color: 'bg-violet-500' },
+              { label: 'XMIT Queues', count: 2, color: 'bg-amber-500' },
+            ].map((d) => (
+              <div key={d.label} className="mb-2">
+                <div className="flex justify-between mb-1">
+                  <span className="text-[11px] text-slate-500">{d.label}</span>
+                  <span className="text-[11px] font-mono text-slate-400">{d.count}</span>
+                </div>
+                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${d.color}`}
+                    style={{ width: `${(d.count / initialNodes.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
-    </PageContainer>
+    </div>
   )
 }
