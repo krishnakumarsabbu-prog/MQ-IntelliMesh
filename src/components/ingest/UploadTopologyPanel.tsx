@@ -10,27 +10,68 @@ import {
   FolderOpen,
   ChevronRight,
   Info,
+  Zap,
+  Layers,
+  ArrowRight,
 } from 'lucide-react'
 import { uploadTopologyFiles } from '../../lib/api/ingest'
 import { ApiRequestError } from '../../lib/api/client'
 import { useIngest } from '../../context/IngestContext'
 
-const EXPECTED_FILES = [
-  { key: 'queue_managers', label: 'Queue Managers', example: 'queue_managers.csv', required: true },
-  { key: 'queues', label: 'Queues', example: 'queues.csv', required: true },
-  { key: 'applications', label: 'Applications', example: 'applications.csv', required: true },
-  { key: 'channels', label: 'Channels', example: 'channels.csv', required: true },
-  { key: 'relationships', label: 'Relationships', example: 'relationships.csv', required: false },
+const HACKATHON_COLUMNS = [
+  'Discrete Queue Name',
+  'ProducerName / ConsumerName',
+  'q_manager_name',
+  'q_type',
+  'app_id',
+  'remote_q_mgr_name',
+  'xmit_q_name',
+]
+
+const NORMALIZED_FILES = [
+  { example: 'queue_managers.csv', required: true, note: 'QM names, types, regions' },
+  { example: 'queues.csv', required: true, note: 'Queue names, types, owning QM' },
+  { example: 'applications.csv', required: true, note: 'App IDs, roles, connected QM' },
+  { example: 'channels.csv', required: true, note: 'Channel names, from/to QM' },
+  { example: 'relationships.csv', required: false, note: 'Producer/consumer mappings' },
 ]
 
 const PROCESSING_MESSAGES = [
   'Uploading topology dataset…',
+  'Detecting CSV format…',
   'Parsing MQ inventory…',
   'Building canonical topology model…',
   'Validating schema integrity…',
   'Mapping producer/consumer relationships…',
   'Indexing queue manager graph…',
 ]
+
+const HACKATHON_SIGNATURE_COLS = new Set([
+  'discrete queue name',
+  'producername',
+  'consumername',
+  'q_manager_name',
+  'primaryapprole',
+  'app_id',
+  'xmit_q_name',
+  'remote_q_mgr_name',
+])
+
+function detectFileFormat(file: File): Promise<'hackathon' | 'normalized' | 'unknown'> {
+  return new Promise(resolve => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const text = (e.target?.result as string) || ''
+      const firstLine = text.split('\n')[0] || ''
+      const cols = new Set(firstLine.toLowerCase().split(',').map(c => c.trim().replace(/^["']|["']$/g, '')))
+      let matched = 0
+      HACKATHON_SIGNATURE_COLS.forEach(sig => { if (cols.has(sig)) matched++ })
+      resolve(matched >= 5 ? 'hackathon' : 'normalized')
+    }
+    reader.onerror = () => resolve('unknown')
+    reader.readAsText(file.slice(0, 2048))
+  })
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -44,6 +85,7 @@ interface UploadTopologyPanelProps {
 
 export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelProps) {
   const [files, setFiles] = useState<File[]>([])
+  const [detectedFormat, setDetectedFormat] = useState<'hackathon' | 'normalized' | 'mixed' | null>(null)
   const [dragging, setDragging] = useState(false)
   const [msgIndex, setMsgIndex] = useState(0)
   const [dupWarning, setDupWarning] = useState<string | null>(null)
@@ -54,7 +96,7 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
 
   const isRunning = status === 'uploading' || status === 'processing'
 
-  const addFiles = useCallback((incoming: FileList | File[]) => {
+  const addFiles = useCallback(async (incoming: FileList | File[]) => {
     const csvFiles = Array.from(incoming).filter(f =>
       f.name.toLowerCase().endsWith('.csv') || f.type === 'text/csv' || f.type === 'application/csv'
     )
@@ -63,6 +105,8 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
       setDupWarning(`${nonCsv} non-CSV file${nonCsv > 1 ? 's' : ''} ignored. Only .csv files are accepted.`)
       setTimeout(() => setDupWarning(null), 4000)
     }
+
+    let newFiles: File[] = []
     setFiles(prev => {
       const names = new Set(prev.map(f => f.name))
       const unique = csvFiles.filter(f => !names.has(f.name))
@@ -71,8 +115,19 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
         setDupWarning(`${dups} duplicate file${dups > 1 ? 's' : ''} skipped.`)
         setTimeout(() => setDupWarning(null), 3000)
       }
-      return [...prev, ...unique]
+      newFiles = [...prev, ...unique]
+      return newFiles
     })
+
+    if (csvFiles.length > 0) {
+      const formats = await Promise.all(csvFiles.map(detectFileFormat))
+      const hasHackathon = formats.includes('hackathon')
+      const hasNormalized = formats.includes('normalized')
+      if (hasHackathon && !hasNormalized) setDetectedFormat('hackathon')
+      else if (hasNormalized && !hasHackathon) setDetectedFormat('normalized')
+      else if (hasHackathon && hasNormalized) setDetectedFormat('mixed')
+      else setDetectedFormat('normalized')
+    }
   }, [])
 
   const onDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -94,7 +149,11 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
   }, [addFiles])
 
   const removeFile = useCallback((name: string) => {
-    setFiles(prev => prev.filter(f => f.name !== name))
+    setFiles(prev => {
+      const next = prev.filter(f => f.name !== name)
+      if (next.length === 0) setDetectedFormat(null)
+      return next
+    })
   }, [])
 
   const startProcessingMessages = useCallback(() => {
@@ -142,18 +201,69 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
           </div>
           <div>
             <h2 className="text-[15px] font-semibold text-white">Upload Topology Dataset</h2>
-            <p className="text-[12px] text-slate-500 mt-0.5">Import CSV exports from your MQ estate for AI analysis</p>
+            <p className="text-[12px] text-slate-500 mt-0.5">Import your MQ inventory CSV — one file or many, both formats supported</p>
           </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="p-6 space-y-4">
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className={`p-3 rounded-xl border transition-all ${
+            detectedFormat === 'hackathon'
+              ? 'bg-teal-500/10 border-teal-500/30'
+              : 'bg-slate-800/20 border-slate-800/50'
+          }`}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Zap className={`w-3.5 h-3.5 ${detectedFormat === 'hackathon' ? 'text-teal-400' : 'text-slate-500'}`} />
+              <span className={`text-[11px] font-semibold ${detectedFormat === 'hackathon' ? 'text-teal-300' : 'text-slate-500'}`}>
+                Single-File Format
+                {detectedFormat === 'hackathon' && <span className="ml-1.5 text-[9px] font-bold bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded border border-teal-500/30">DETECTED</span>}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">One denormalized CSV with all queue, app, and relationship data in each row.</p>
+            <div className="space-y-0.5">
+              {HACKATHON_COLUMNS.slice(0, 4).map(col => (
+                <div key={col} className="flex items-center gap-1.5">
+                  <span className="w-1 h-1 rounded-full bg-slate-700 flex-shrink-0" />
+                  <span className="text-[9px] font-mono text-slate-600">{col}</span>
+                </div>
+              ))}
+              <div className="text-[9px] text-slate-700 pl-2.5">+ {HACKATHON_COLUMNS.length - 4} more columns…</div>
+            </div>
+          </div>
+
+          <div className={`p-3 rounded-xl border transition-all ${
+            detectedFormat === 'normalized'
+              ? 'bg-blue-500/10 border-blue-500/30'
+              : 'bg-slate-800/20 border-slate-800/50'
+          }`}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Layers className={`w-3.5 h-3.5 ${detectedFormat === 'normalized' ? 'text-blue-400' : 'text-slate-500'}`} />
+              <span className={`text-[11px] font-semibold ${detectedFormat === 'normalized' ? 'text-blue-300' : 'text-slate-500'}`}>
+                Multi-File Format
+                {detectedFormat === 'normalized' && <span className="ml-1.5 text-[9px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">DETECTED</span>}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">Separate CSV per entity type — one file per object category.</p>
+            <div className="space-y-0.5">
+              {NORMALIZED_FILES.map(f => (
+                <div key={f.example} className="flex items-center gap-1.5">
+                  <ChevronRight className="w-2.5 h-2.5 text-slate-700 flex-shrink-0" />
+                  <span className="text-[9px] font-mono text-slate-600">{f.example}</span>
+                  {f.required && <span className="text-[8px] font-bold text-blue-500/60 uppercase ml-auto">req</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onClick={() => !isRunning && fileInputRef.current?.click()}
-          className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer group
+          className={`relative border-2 border-dashed rounded-xl p-7 text-center transition-all duration-200 cursor-pointer group
             ${dragging
               ? 'border-blue-400/60 bg-blue-500/8 scale-[1.01]'
               : isRunning
@@ -171,19 +281,19 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
             disabled={isRunning}
           />
 
-          <div className={`w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center transition-all
+          <div className={`w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center transition-all
             ${dragging ? 'bg-blue-500/20 scale-110' : 'bg-slate-800/60 group-hover:bg-blue-500/10'}`}
           >
-            <FolderOpen className={`w-6 h-6 transition-colors ${dragging ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
+            <FolderOpen className={`w-5 h-5 transition-colors ${dragging ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400'}`} />
           </div>
 
           <p className={`text-[14px] font-medium mb-1 transition-colors ${dragging ? 'text-blue-300' : 'text-slate-300 group-hover:text-white'}`}>
-            {dragging ? 'Release to add files' : 'Drag & drop CSV files here'}
+            {dragging ? 'Release to add files' : 'Drop your CSV file(s) here'}
           </p>
-          <p className="text-[12px] text-slate-600 mb-3">or click to browse your filesystem</p>
+          <p className="text-[11px] text-slate-600 mb-3">1 file (hackathon format) or up to 5 files (normalized format)</p>
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-800/60 border border-slate-700/50 text-[11px] font-mono text-slate-500">
-            .csv files only
+            .csv only — auto-detected
           </span>
 
           {dragging && (
@@ -219,12 +329,29 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
               className="space-y-1.5"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-medium text-slate-400">
-                  {files.length} file{files.length > 1 ? 's' : ''} selected
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-medium text-slate-400">
+                    {files.length} file{files.length > 1 ? 's' : ''} selected
+                  </span>
+                  {detectedFormat === 'hackathon' && (
+                    <span className="text-[9px] font-bold bg-teal-500/15 text-teal-300 px-2 py-0.5 rounded border border-teal-500/20">
+                      Hackathon Format
+                    </span>
+                  )}
+                  {detectedFormat === 'normalized' && (
+                    <span className="text-[9px] font-bold bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded border border-blue-500/20">
+                      Normalized Format
+                    </span>
+                  )}
+                  {detectedFormat === 'mixed' && (
+                    <span className="text-[9px] font-bold bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20">
+                      Mixed Formats
+                    </span>
+                  )}
+                </div>
                 {!isRunning && (
                   <button
-                    onClick={() => setFiles([])}
+                    onClick={() => { setFiles([]); setDetectedFormat(null) }}
                     className="text-[11px] text-slate-600 hover:text-rose-400 transition-colors"
                   >
                     Clear all
@@ -257,23 +384,32 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
           )}
         </AnimatePresence>
 
-        <div className="bg-slate-800/20 border border-slate-800/50 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Info className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Expected CSV Categories</span>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {EXPECTED_FILES.map(f => (
-              <div key={f.key} className="flex items-center gap-2">
-                <ChevronRight className="w-3 h-3 text-slate-700 flex-shrink-0" />
-                <span className="text-[11px] font-mono text-slate-600">{f.example}</span>
-                {f.required && (
-                  <span className="text-[9px] font-semibold text-blue-500/70 uppercase">req</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        {detectedFormat === 'hackathon' && files.length > 0 && !isRunning && status !== 'success' && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 py-3 rounded-xl bg-teal-500/8 border border-teal-500/20"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="w-3.5 h-3.5 text-teal-400" />
+              <span className="text-[12px] font-semibold text-teal-300">Hackathon format detected</span>
+            </div>
+            <div className="space-y-1">
+              {[
+                'Queues extracted from "Discrete Queue Name" column',
+                'Producers & consumers extracted from ProducerName / ConsumerName',
+                'Queue Managers extracted from q_manager_name',
+                'Queue types (Local, Remote, Alias) auto-classified from q_type',
+                'Cross-QM routing paths inferred from remote_q_mgr_name + xmit_q_name',
+              ].map((step, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <ArrowRight className="w-3 h-3 text-teal-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-[10px] text-teal-600/80">{step}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         <AnimatePresence mode="wait">
           {isRunning ? (
@@ -334,7 +470,7 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
               <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
               <div>
                 <p className="text-[13px] font-semibold text-emerald-300">Topology ingested successfully</p>
-                <p className="text-[11px] text-emerald-500/70 mt-0.5">Estate model built and ready for analysis</p>
+                <p className="text-[11px] text-emerald-500/70 mt-0.5">Estate model built — ready for analysis on the next tab</p>
               </div>
             </motion.div>
           ) : (
@@ -354,7 +490,7 @@ export default function UploadTopologyPanel({ onSuccess }: UploadTopologyPanelPr
                 }`}
             >
               <UploadCloud className="w-4 h-4" />
-              {files.length === 0 ? 'Select files to begin ingestion' : `Ingest Topology Dataset (${files.length} file${files.length > 1 ? 's' : ''})`}
+              {files.length === 0 ? 'Select a CSV file to begin' : `Ingest Topology Dataset (${files.length} file${files.length > 1 ? 's' : ''})`}
             </motion.button>
           )}
         </AnimatePresence>
