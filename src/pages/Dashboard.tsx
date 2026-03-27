@@ -19,6 +19,10 @@ import {
   CheckCircle2,
   X,
   BrainCircuit,
+  Sparkles,
+  PackageCheck,
+  TrendingDown,
+  Zap,
 } from 'lucide-react'
 import PageContainer from '../components/ui/PageContainer'
 import MetricCard from '../components/ui/MetricCard'
@@ -196,110 +200,158 @@ export default function Dashboard() {
   return (
     <PageContainer>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#111827] to-[#0B1020] border border-slate-800/60 p-8 mb-6"
+        transition={{ duration: 0.55, ease: 'easeOut' }}
+        className="relative overflow-hidden rounded-2xl border border-slate-800/60 mb-6"
+        style={{ background: 'linear-gradient(135deg, #0A0F1E 0%, #0D1628 40%, #080D18 100%)' }}
       >
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-cyan-500/5 blur-3xl translate-y-1/2" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-blue-600/4 blur-3xl -translate-y-1/3 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[300px] rounded-full bg-cyan-500/4 blur-3xl translate-y-1/2 -translate-x-1/4" />
+          <div className="absolute top-1/2 right-1/4 w-[200px] h-[200px] rounded-full bg-emerald-500/3 blur-2xl" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/25 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
         </div>
 
-        <div className="relative max-w-2xl">
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {isAnalyzed ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20"
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span className="text-[11px] font-medium text-emerald-400">Analysis Complete · {totalFindings} findings</span>
-              </motion.div>
-            ) : isReady ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20"
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                <span className="text-[11px] font-medium text-blue-400">Dataset Loaded — Ready to Analyze</span>
-              </motion.div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[11px] font-medium text-emerald-400">AI Transformation Engine Ready</span>
+        <div className="relative px-8 py-7">
+          <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-5 flex-wrap">
+                <AnimatePresence mode="wait">
+                  {isAnalyzed ? (
+                    <motion.div
+                      key="analyzed"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 8 }}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span className="text-[11px] font-semibold text-emerald-400">Analysis Complete — {totalFindings} findings detected</span>
+                    </motion.div>
+                  ) : isReady ? (
+                    <motion.div
+                      key="ready"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 8 }}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/25"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                      <span className="text-[11px] font-semibold text-blue-300">Dataset Ingested — Run analysis to surface findings</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="idle"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 8 }}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700/30 border border-slate-700/40"
+                    >
+                      <Sparkles className="w-3 h-3 text-slate-400" />
+                      <span className="text-[11px] font-semibold text-slate-400">AI Transformation Engine Ready — Upload your MQ topology to begin</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            )}
-          </div>
 
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">MQ IntelliMesh</h1>
-          <p className="text-lg font-medium text-blue-400 mb-3">
-            AI-Powered MQ Topology Transformation &amp; Automation Platform
-          </p>
-          <p className="text-[14px] text-slate-400 leading-relaxed mb-6 max-w-xl">
-            Transform complex IBM MQ estates into simplified, explainable, automation-ready target architectures.
-            Detect anomalies, quantify complexity, and export production-grade automation artifacts.
-          </p>
+              <h1 className="text-[32px] lg:text-[38px] font-black text-white mb-1.5 tracking-tight leading-tight">
+                MQ IntelliMesh
+              </h1>
+              <p className="text-[16px] font-semibold text-blue-400 mb-3 leading-tight">
+                AI-Powered MQ Topology Transformation &amp; Automation Platform
+              </p>
+              <p className="text-[13px] text-slate-400 leading-relaxed mb-6 max-w-xl">
+                Analyze your IBM MQ estate, detect structural risk and policy violations, generate a validated target-state architecture, and export automation-ready provisioning artifacts — end to end.
+              </p>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowUpload(v => !v)}
-              disabled={isIngesting}
-              className={
-                "flex items-center gap-2 px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed " +
-                (isReady ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-blue-500 hover:bg-blue-600 shadow-blue-500/20")
-              }
-            >
-              {isReady ? <CheckCircle2 className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-              {isReady ? "Dataset Loaded" : (showUpload ? "Close Upload Panel" : "Upload Topology")}
-            </motion.button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowUpload(v => !v)}
+                  disabled={isIngesting}
+                  className={
+                    "flex items-center gap-2 px-5 py-2.5 text-white text-[13px] font-bold rounded-xl transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed " +
+                    (isReady
+                      ? "bg-blue-600/80 border border-blue-500/40 hover:bg-blue-600 shadow-blue-500/15"
+                      : "bg-blue-500 hover:bg-blue-400 shadow-blue-500/25")
+                  }
+                >
+                  {isReady ? <CheckCircle2 className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                  {isReady ? "Dataset Loaded" : showUpload ? "Close Upload" : "Upload Topology"}
+                </motion.button>
 
-            {isReady && !isAnalyzed && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowAnalyze(v => !v)}
-                disabled={isAnalyzing}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
-              >
-                <BrainCircuit className="w-4 h-4" />
-                {isAnalyzing ? "Analyzing…" : showAnalyze ? "Close Analysis Panel" : "Analyze Estate"}
-              </motion.button>
-            )}
+                {isReady && !isAnalyzed && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAnalyze(v => !v)}
+                    disabled={isAnalyzing}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-900 disabled:cursor-not-allowed text-white text-[13px] font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
+                  >
+                    <BrainCircuit className="w-4 h-4" />
+                    {isAnalyzing ? "Analyzing Estate…" : showAnalyze ? "Close Analysis" : "Analyze Estate"}
+                  </motion.button>
+                )}
 
-            {isAnalyzed && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm font-semibold rounded-xl"
-              >
-                <BrainCircuit className="w-4 h-4" />
-                Analysis Complete
-              </motion.div>
-            )}
+                {isAnalyzed && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[13px] font-bold rounded-xl"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Analysis Complete
+                  </motion.div>
+                )}
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-semibold rounded-xl transition-all"
-            >
-              <Play className="w-4 h-4" />
-              Run Transformation
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-slate-700/50 hover:bg-slate-700/80 border border-slate-600/40 text-slate-300 text-sm font-semibold rounded-xl transition-all"
-            >
-              <Database className="w-4 h-4" />
-              View Demo Dataset
-            </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-cyan-500/8 hover:bg-cyan-500/15 border border-cyan-500/25 text-cyan-300 text-[13px] font-bold rounded-xl transition-all"
+                >
+                  <Play className="w-4 h-4" />
+                  Run Transformation
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-700/40 hover:bg-slate-700/60 border border-slate-700/40 text-slate-400 text-[13px] font-bold rounded-xl transition-all"
+                >
+                  <Database className="w-4 h-4" />
+                  View Demo Data
+                </motion.button>
+              </div>
+            </div>
+
+            <div className="lg:flex-shrink-0 grid grid-cols-2 gap-3 lg:w-72">
+              {[
+                { icon: TrendingDown, label: 'Complexity Reduction', value: '~41%', sublabel: 'Projected after transformation', color: 'text-emerald-400', bg: 'bg-emerald-500/6 border-emerald-500/15' },
+                { icon: Zap, label: 'Automation Speed', value: '10×', sublabel: 'vs. manual re-architecture', color: 'text-blue-400', bg: 'bg-blue-500/6 border-blue-500/15' },
+                { icon: ShieldAlert, label: 'Risk Detection', value: 'AI-led', sublabel: 'Policy & topology violations', color: 'text-amber-400', bg: 'bg-amber-500/6 border-amber-500/15' },
+                { icon: PackageCheck, label: 'Delivery Artifacts', value: '13+', sublabel: 'Target-state deliverables', color: 'text-cyan-400', bg: 'bg-cyan-500/6 border-cyan-500/15' },
+              ].map((kpi, i) => {
+                const Icon = kpi.icon
+                return (
+                  <motion.div
+                    key={kpi.label}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 + i * 0.07 }}
+                    className={`rounded-xl border px-4 py-3.5 ${kpi.bg}`}
+                  >
+                    <Icon className={`w-4 h-4 ${kpi.color} mb-2`} />
+                    <div className={`text-[22px] font-black tabular-nums leading-none ${kpi.color}`}>{kpi.value}</div>
+                    <div className="text-[11px] font-semibold text-slate-300 mt-1">{kpi.label}</div>
+                    <div className="text-[10px] text-slate-600 mt-0.5 leading-tight">{kpi.sublabel}</div>
+                  </motion.div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </motion.div>

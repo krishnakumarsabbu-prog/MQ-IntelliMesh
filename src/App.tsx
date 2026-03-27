@@ -11,9 +11,11 @@ import Exports from './pages/Exports'
 import { IngestProvider } from './context/IngestContext'
 import { AnalysisProvider } from './context/AnalysisContext'
 import { ExportProvider } from './context/ExportContext'
+import { DemoProvider } from './context/DemoContext'
 
 export default function App() {
   return (
+    <DemoProvider>
     <IngestProvider>
     <AnalysisProvider>
     <ExportProvider>
@@ -35,5 +37,6 @@ export default function App() {
     </ExportProvider>
     </AnalysisProvider>
     </IngestProvider>
+    </DemoProvider>
   )
 }
