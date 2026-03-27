@@ -10,8 +10,11 @@ import {
   Download,
   Zap,
   ChevronRight,
+  CheckCircle2,
+  UploadCloud,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useIngest } from '../../context/IngestContext'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,6 +29,12 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation()
+  const { isReady, result, status } = useIngest()
+  const isIngesting = status === 'uploading' || status === 'processing'
+
+  const objectCount = isReady && result
+    ? (result.queue_managers + result.queues + result.applications + result.channels + result.relationships)
+    : null
 
   return (
     <aside className="w-64 flex-shrink-0 bg-[#0F172A] border-r border-slate-800/60 flex flex-col h-screen sticky top-0">
@@ -77,16 +86,65 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-4 py-4 border-t border-slate-800/60">
-        <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/30">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-            <span className="text-[11px] font-semibold text-violet-300">AI Engine Active</span>
-          </div>
-          <p className="text-[10px] text-slate-500 leading-relaxed">Topology analysis ready. 847 objects loaded.</p>
-          <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
-            <div className="h-full w-3/4 bg-gradient-to-r from-violet-500 to-blue-500 rounded-full" />
-          </div>
-        </div>
+        <AnimatePresence mode="wait">
+          {isReady && result ? (
+            <motion.div
+              key="loaded"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="bg-emerald-500/8 rounded-xl p-3 border border-emerald-500/20"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <span className="text-[11px] font-semibold text-emerald-300">Dataset Loaded</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                {objectCount !== null ? objectCount.toLocaleString() : '0'} objects ingested and indexed.
+              </p>
+              <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full w-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full" />
+              </div>
+            </motion.div>
+          ) : isIngesting ? (
+            <motion.div
+              key="ingesting"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="bg-blue-500/8 rounded-xl p-3 border border-blue-500/20"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-[11px] font-semibold text-blue-300">Ingesting…</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">Parsing MQ topology dataset.</p>
+              <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"
+                  initial={{ width: '10%' }}
+                  animate={{ width: '80%' }}
+                  transition={{ duration: 3, ease: 'easeOut' }}
+                />
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/30"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <UploadCloud className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                <span className="text-[11px] font-semibold text-slate-400">No Dataset Loaded</span>
+              </div>
+              <p className="text-[10px] text-slate-600 leading-relaxed">Upload CSV files from the Dashboard to begin analysis.</p>
+              <div className="mt-2 h-1 bg-slate-700/50 rounded-full" />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="px-4 py-4 border-t border-slate-800/60">
