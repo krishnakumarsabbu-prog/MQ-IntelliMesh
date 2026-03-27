@@ -10,11 +10,13 @@ import Explainability from './pages/Explainability'
 import Exports from './pages/Exports'
 import { IngestProvider } from './context/IngestContext'
 import { AnalysisProvider } from './context/AnalysisContext'
+import { ExportProvider } from './context/ExportContext'
 
 export default function App() {
   return (
     <IngestProvider>
     <AnalysisProvider>
+    <ExportProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppShell />}>
@@ -30,6 +32,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+    </ExportProvider>
     </AnalysisProvider>
     </IngestProvider>
   )

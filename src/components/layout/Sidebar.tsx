@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIngest } from '../../context/IngestContext'
 import { useAnalysis } from '../../context/AnalysisContext'
+import { useExport } from '../../context/ExportContext'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,6 +33,7 @@ export default function Sidebar() {
   const location = useLocation()
   const { isReady, result, status } = useIngest()
   const { isAnalyzed, totalFindings, healthScore } = useAnalysis()
+  const { isExported, artifactCount } = useExport()
   const isIngesting = status === 'uploading' || status === 'processing'
 
   const objectCount = isReady && result
@@ -89,7 +91,26 @@ export default function Sidebar() {
 
       <div className="px-4 py-4 border-t border-slate-800/60">
         <AnimatePresence mode="wait">
-          {isAnalyzed ? (
+          {isExported ? (
+            <motion.div
+              key="exported"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="bg-emerald-500/8 rounded-xl p-3 border border-emerald-500/25"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <Download className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <span className="text-[11px] font-semibold text-emerald-300">Export Ready</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                {artifactCount} artifacts · delivery bundle ready
+              </p>
+              <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full w-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" />
+              </div>
+            </motion.div>
+          ) : isAnalyzed ? (
             <motion.div
               key="analyzed"
               initial={{ opacity: 0, y: 4 }}
