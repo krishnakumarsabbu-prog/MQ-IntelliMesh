@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Flame, AlertOctagon, AlertTriangle, Info, Server, Layout, GitBranch } from 'lucide-react'
+import { Flame, AlertOctagon, AlertTriangle, Info, Server, LayoutGrid as Layout, GitBranch } from 'lucide-react'
 import type { hotspots } from '../../data/complexityData'
 
 type Hotspot = typeof hotspots[number]
