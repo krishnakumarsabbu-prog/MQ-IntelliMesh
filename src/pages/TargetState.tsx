@@ -1,129 +1,159 @@
+import { ReactFlowProvider } from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { motion } from 'framer-motion'
-import { Target, Server, ArrowLeftRight, TrendingDown, Download, CheckCircle2 } from 'lucide-react'
-import PageContainer from '../components/ui/PageContainer'
-import StatusBadge from '../components/ui/StatusBadge'
+import { Target, Sparkles, Download } from 'lucide-react'
 
-const targetQMs = [
-  { id: 'CORE-QM-01', role: 'Central Hub', queues: 42, channels: 18, apps: 31, reduction: 'Consolidated 3 hubs' },
-  { id: 'APP-QM-01', role: 'Application', queues: 18, channels: 6, apps: 6, reduction: 'Unchanged' },
-  { id: 'SVC-QM-POOL', role: 'Service Pool', queues: 28, channels: 8, apps: 9, reduction: 'Merged 3 SVC QMs' },
-]
+import {
+  transformationMetrics,
+  beforeAfterComparison,
+  diffSummary,
+  transformationDecisions,
+  validationChecks,
+  transformationTimeline,
+} from '../data/targetStateData'
+
+import TransformationHero from '../components/targetstate/TransformationHero'
+import BeforeAfterComparison from '../components/targetstate/BeforeAfterComparison'
+import DiffPanel from '../components/targetstate/DiffPanel'
+import DecisionPanel from '../components/targetstate/DecisionPanel'
+import ValidationPanel from '../components/targetstate/ValidationPanel'
+import TransformationTimeline from '../components/targetstate/TransformationTimeline'
+import TargetTopologyCanvas from '../components/targetstate/TargetTopologyCanvas'
+import StatusBadge from '../components/ui/StatusBadge'
 
 export default function TargetState() {
   return (
-    <PageContainer>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-white">Target State</h2>
-          <p className="text-[13px] text-slate-500 mt-1">AI-generated optimized target architecture — 41% complexity reduction</p>
-        </div>
-        <div className="flex gap-2">
-          <StatusBadge label="AI Generated" variant="ai" dot pulse />
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-blue-500/20">
-            <Download className="w-3.5 h-3.5" />
-            Export Architecture
-          </button>
+    <div className="min-h-full bg-[#0B1020]">
+      <TransformationHero metrics={transformationMetrics} />
+
+      <div className="px-6 mb-5">
+        <TransformationTimeline steps={transformationTimeline} />
+      </div>
+
+      <div className="px-6 mb-5">
+        <BeforeAfterComparison data={beforeAfterComparison} />
+      </div>
+
+      <div className="px-6 mb-5">
+        <div className="bg-[#0B1020] border border-slate-800/60 rounded-2xl overflow-hidden shadow-2xl flex flex-col" style={{ height: 560 }}>
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800/60 bg-[#0F172A]/90 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Target className="w-4 h-4 text-emerald-400" />
+              <span className="text-[13px] font-semibold text-slate-200">Target-State Topology Explorer</span>
+              <StatusBadge label="AI Generated" variant="ai" dot pulse />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-slate-600">
+                Clean architecture · Single-QM ownership · RemoteQ pattern enforced
+              </span>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold rounded-lg transition-all"
+              >
+                <Download className="w-3 h-3" />
+                Export
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="flex-1 relative">
+            <div className="absolute top-3 left-3 z-10 bg-[#0F172A]/90 backdrop-blur-sm rounded-xl border border-slate-800/60 px-3 py-2.5 space-y-1.5">
+              <div className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Architecture Pattern</div>
+              {[
+                { dot: 'bg-emerald-400', label: 'App → Single QM ownership' },
+                { dot: 'bg-violet-400', label: 'Producer → RemoteQ abstraction' },
+                { dot: 'bg-amber-400', label: 'XmitQ inter-QM routing' },
+                { dot: 'bg-cyan-400', label: 'Consumer ← Local Queue' },
+                { dot: 'bg-emerald-500', label: 'Channel — SSL enforced' },
+              ].map((l) => (
+                <div key={l.label} className="flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${l.dot} flex-shrink-0`} />
+                  <span className="text-[9px] text-slate-400">{l.label}</span>
+                </div>
+              ))}
+            </div>
+            <ReactFlowProvider>
+              <TargetTopologyCanvas />
+            </ReactFlowProvider>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Queue Managers', before: 47, after: 28, icon: Server },
-          { label: 'Active Channels', before: 312, after: 189, icon: ArrowLeftRight },
-          { label: 'Complexity Score', before: 68, after: 34, icon: TrendingDown },
-          { label: 'Policy Violations', before: 18, after: 0, icon: CheckCircle2 },
-        ].map((item, i) => {
-          const Icon = item.icon
-          const pct = Math.round(((item.before - item.after) / item.before) * 100)
-          return (
+      <div className="px-6 mb-5">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <DiffPanel items={diffSummary} />
+
+          <div className="flex flex-col gap-4">
             <motion.div
-              key={item.label}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07 }}
-              className="bg-[#111827] border border-slate-800/60 rounded-xl p-5"
+              transition={{ delay: 0.2 }}
+              className="bg-gradient-to-br from-emerald-500/5 via-[#111827] to-[#111827] border border-emerald-500/15 rounded-2xl p-5"
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] text-slate-500">{item.label}</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <Icon className="w-4 h-4 text-emerald-400" />
-                </div>
+              <div className="flex items-center gap-2.5 mb-4">
+                <Sparkles className="w-4 h-4 text-violet-400" />
+                <h3 className="text-[14px] font-semibold text-white">Transformation Impact Summary</h3>
               </div>
-              <div className="flex items-end gap-3">
-                <div>
-                  <div className="text-[11px] text-slate-600 mb-0.5">Before</div>
-                  <div className="text-xl font-bold text-slate-400 tabular-nums line-through decoration-rose-500/50">{item.before}</div>
-                </div>
-                <div className="mb-1 text-slate-700">→</div>
-                <div>
-                  <div className="text-[11px] text-slate-600 mb-0.5">After</div>
-                  <div className="text-xl font-bold text-emerald-400 tabular-nums">{item.after}</div>
-                </div>
-                <div className="ml-auto mb-1">
-                  <span className="text-[13px] font-bold text-emerald-400">-{pct}%</span>
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'QMs Eliminated', value: '19', color: 'text-rose-400', hint: '47 → 28' },
+                  { label: 'Channels Removed', value: '123', color: 'text-rose-400', hint: '312 → 189' },
+                  { label: 'Apps Rationalized', value: '11', color: 'text-emerald-400', hint: 'single-QM ownership' },
+                  { label: 'Patterns Applied', value: '8', color: 'text-violet-400', hint: 'remoteQ standard' },
+                  { label: 'Violations Cleared', value: '18', color: 'text-emerald-400', hint: 'was 18, now 0' },
+                  { label: 'XmitQs Introduced', value: '6', color: 'text-amber-400', hint: 'standard routing' },
+                ].map((s) => (
+                  <div key={s.label} className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/30">
+                    <div className={`text-xl font-black tabular-nums ${s.color}`}>{s.value}</div>
+                    <div className="text-[11px] font-medium text-slate-400 mt-0.5">{s.label}</div>
+                    <div className="text-[9px] text-slate-600 font-mono mt-0.5">{s.hint}</div>
+                  </div>
+                ))}
               </div>
             </motion.div>
-          )
-        })}
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-[#111827] border border-slate-800/60 rounded-2xl p-5 flex-1"
+            >
+              <h3 className="text-[14px] font-semibold text-white mb-4">Architecture Principles Applied</h3>
+              <div className="space-y-2.5">
+                {[
+                  { principle: 'Single-QM application ownership', status: 'enforced', detail: '11 apps rationalized' },
+                  { principle: 'Producer remoteQ abstraction', status: 'enforced', detail: '8 apps migrated' },
+                  { principle: 'Consumer local-queue reads only', status: 'enforced', detail: 'zero cross-QM reads' },
+                  { principle: 'XmitQ-based inter-QM routing', status: 'enforced', detail: '6 xmitQs created' },
+                  { principle: 'SSL/TLS on all channels', status: 'enforced', detail: '100% coverage' },
+                  { principle: 'Deterministic naming convention', status: 'enforced', detail: 'OBJTYPE.DOMAIN.NAME' },
+                ].map((p, i) => (
+                  <div key={i} className="flex items-center gap-3 py-2 border-b border-slate-800/40 last:border-0">
+                    <div className="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[12px] text-slate-300">{p.principle}</span>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-[10px] font-mono text-emerald-400/80">{p.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-[#111827] border border-slate-800/60 rounded-xl overflow-hidden mb-5">
-        <div className="px-5 py-4 border-b border-slate-800/60">
-          <h3 className="text-[14px] font-semibold text-white">Target Queue Manager Architecture</h3>
-          <p className="text-[12px] text-slate-500 mt-0.5">Simplified from 47 to 28 queue managers</p>
-        </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-800/60">
-              {['Queue Manager', 'Role', 'Queues', 'Channels', 'Apps', 'Transformation'].map(h => (
-                <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {targetQMs.map((qm, i) => (
-              <motion.tr
-                key={qm.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.06 + 0.3 }}
-                className="border-b border-slate-800/40 hover:bg-slate-800/20 transition-colors"
-              >
-                <td className="px-5 py-3.5 font-mono text-[12px] text-emerald-400">{qm.id}</td>
-                <td className="px-5 py-3.5 text-[12px] text-slate-400">{qm.role}</td>
-                <td className="px-5 py-3.5 text-[13px] font-semibold text-white">{qm.queues}</td>
-                <td className="px-5 py-3.5 text-[13px] font-semibold text-white">{qm.channels}</td>
-                <td className="px-5 py-3.5 text-[13px] text-slate-300">{qm.apps}</td>
-                <td className="px-5 py-3.5">
-                  <span className="text-[11px] text-emerald-400/80 font-mono">{qm.reduction}</span>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="px-6 mb-5">
+        <DecisionPanel decisions={transformationDecisions} />
       </div>
 
-      <div className="bg-gradient-to-r from-emerald-500/5 via-[#111827] to-[#111827] border border-emerald-500/20 rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-3">
-          <Target className="w-5 h-5 text-emerald-400" />
-          <h3 className="text-[14px] font-semibold text-white">Target-State Validation Summary</h3>
-          <StatusBadge label="All checks passed" variant="success" dot />
-        </div>
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-          {[
-            'Zero policy violations in target',
-            'All applications retain connectivity',
-            'No message path disruptions',
-            'Automation artifacts generated',
-          ].map((item) => (
-            <div key={item} className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <span className="text-[12px] text-slate-400">{item}</span>
-            </div>
-          ))}
-        </div>
+      <div className="px-6 pb-6">
+        <ValidationPanel checks={validationChecks} />
       </div>
-    </PageContainer>
+    </div>
   )
 }
