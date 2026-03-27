@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIngest } from '../../context/IngestContext'
+import { useAnalysis } from '../../context/AnalysisContext'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -30,6 +31,7 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation()
   const { isReady, result, status } = useIngest()
+  const { isAnalyzed, totalFindings, healthScore } = useAnalysis()
   const isIngesting = status === 'uploading' || status === 'processing'
 
   const objectCount = isReady && result
@@ -87,7 +89,29 @@ export default function Sidebar() {
 
       <div className="px-4 py-4 border-t border-slate-800/60">
         <AnimatePresence mode="wait">
-          {isReady && result ? (
+          {isAnalyzed ? (
+            <motion.div
+              key="analyzed"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="bg-blue-500/8 rounded-xl p-3 border border-blue-500/20"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <BrainCircuit className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                <span className="text-[11px] font-semibold text-blue-300">Analysis Complete</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                {totalFindings} findings · health {healthScore}%
+              </p>
+              <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-700"
+                  style={{ width: `${healthScore}%` }}
+                />
+              </div>
+            </motion.div>
+          ) : isReady && result ? (
             <motion.div
               key="loaded"
               initial={{ opacity: 0, y: 4 }}

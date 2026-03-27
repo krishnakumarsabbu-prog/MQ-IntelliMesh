@@ -18,6 +18,7 @@ import {
   Upload,
   CheckCircle2,
   X,
+  BrainCircuit,
 } from 'lucide-react'
 import PageContainer from '../components/ui/PageContainer'
 import MetricCard from '../components/ui/MetricCard'
@@ -28,7 +29,10 @@ import VideoPlaceholder from '../components/ui/VideoPlaceholder'
 import MiniTopologyPreview from '../components/ui/MiniTopologyPreview'
 import UploadTopologyPanel from '../components/ingest/UploadTopologyPanel'
 import IngestResultsPanel from '../components/ingest/IngestResultsPanel'
+import AnalysisTriggerPanel from '../components/analysis/AnalysisTriggerPanel'
+import AnalysisSummaryPanel from '../components/analysis/AnalysisSummaryPanel'
 import { useIngest } from '../context/IngestContext'
+import { useAnalysis } from '../context/AnalysisContext'
 
 const staticMetrics = [
   {
@@ -153,22 +157,41 @@ function LiveMetricCard({ realValue, delay, ...rest }: MetricDef & { delay?: num
 
 export default function Dashboard() {
   const [showUpload, setShowUpload] = useState(false)
-  const { status, result, isReady } = useIngest()
+  const [showAnalyze, setShowAnalyze] = useState(false)
+  const { status: ingestStatus, result: ingestResult, isReady } = useIngest()
+  const { isAnalyzed, result: analysisResult, healthScore, totalFindings, status: analysisStatus } = useAnalysis()
 
-  const liveMetrics: MetricDef[] = isReady && result
-    ? staticMetrics.map(m => {
-        if (m.label === 'Applications') return { ...m, realValue: result.applications }
-        if (m.label === 'Queue Managers') return { ...m, realValue: result.queue_managers }
-        if (m.label === 'Channels') return { ...m, realValue: result.channels }
+  const liveMetrics: MetricDef[] = (() => {
+    if (isAnalyzed && analysisResult) {
+      return staticMetrics.map(m => {
+        if (m.label === 'MQ Health Score') return { ...m, realValue: analysisResult.health.score }
+        if (m.label === 'Applications') return { ...m, realValue: analysisResult.topology_stats.applications }
+        if (m.label === 'Queue Managers') return { ...m, realValue: analysisResult.topology_stats.queue_managers }
+        if (m.label === 'Channels') return { ...m, realValue: analysisResult.topology_stats.channels }
+        if (m.label === 'Policy Violations') return { ...m, realValue: analysisResult.summary.policy_violations }
         return { ...m, realValue: undefined }
       })
-    : staticMetrics.map(m => ({ ...m, realValue: undefined }))
+    }
+    if (isReady && ingestResult) {
+      return staticMetrics.map(m => {
+        if (m.label === 'Applications') return { ...m, realValue: ingestResult.applications }
+        if (m.label === 'Queue Managers') return { ...m, realValue: ingestResult.queue_managers }
+        if (m.label === 'Channels') return { ...m, realValue: ingestResult.channels }
+        return { ...m, realValue: undefined }
+      })
+    }
+    return staticMetrics.map(m => ({ ...m, realValue: undefined }))
+  })()
 
-  const readinessItems = baseReadinessItems.map((item, i) =>
-    i === 0 ? { ...item, done: isReady } : item
-  )
+  const readinessItems = baseReadinessItems.map((item, i) => {
+    if (i === 0) return { ...item, done: isReady }
+    if (i === 1) return { ...item, done: isAnalyzed }
+    if (i === 2) return { ...item, done: isAnalyzed }
+    return item
+  })
 
-  const isIngesting = status === 'uploading' || status === 'processing'
+  const isIngesting = ingestStatus === 'uploading' || ingestStatus === 'processing'
+  const isAnalyzing = analysisStatus === 'running'
 
   return (
     <PageContainer>
@@ -184,15 +207,24 @@ export default function Dashboard() {
         </div>
 
         <div className="relative max-w-2xl">
-          <div className="flex items-center gap-2 mb-4">
-            {isReady ? (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {isAnalyzed ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20"
               >
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span className="text-[11px] font-medium text-emerald-400">Topology Dataset Loaded</span>
+                <span className="text-[11px] font-medium text-emerald-400">Analysis Complete · {totalFindings} findings</span>
+              </motion.div>
+            ) : isReady ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-[11px] font-medium text-blue-400">Dataset Loaded — Ready to Analyze</span>
               </motion.div>
             ) : (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -219,12 +251,39 @@ export default function Dashboard() {
               disabled={isIngesting}
               className={
                 "flex items-center gap-2 px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed " +
-                (isReady ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-blue-500 hover:bg-blue-600 shadow-blue-500/20")
+                (isReady ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-blue-500 hover:bg-blue-600 shadow-blue-500/20")
               }
             >
               {isReady ? <CheckCircle2 className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
               {isReady ? "Dataset Loaded" : (showUpload ? "Close Upload Panel" : "Upload Topology")}
             </motion.button>
+
+            {isReady && !isAnalyzed && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowAnalyze(v => !v)}
+                disabled={isAnalyzing}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
+              >
+                <BrainCircuit className="w-4 h-4" />
+                {isAnalyzing ? "Analyzing…" : showAnalyze ? "Close Analysis Panel" : "Analyze Estate"}
+              </motion.button>
+            )}
+
+            {isAnalyzed && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm font-semibold rounded-xl"
+              >
+                <BrainCircuit className="w-4 h-4" />
+                Analysis Complete
+              </motion.div>
+            )}
+
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -281,6 +340,42 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showAnalyze && isReady && !isAnalyzed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="mb-6 overflow-hidden"
+          >
+            <div className="relative">
+              <button
+                onClick={() => setShowAnalyze(false)}
+                className="absolute top-4 right-4 z-10 w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-700/50 transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <AnalysisTriggerPanel onComplete={() => setShowAnalyze(false)} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isAnalyzed && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6"
+          >
+            <AnalysisSummaryPanel onReanalyze={() => setShowAnalyze(true)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         {liveMetrics.map((m, i) => (
           <LiveMetricCard key={m.label} {...m} delay={i * 0.05} />
@@ -314,8 +409,10 @@ export default function Dashboard() {
           <div className="mt-4 pt-4 border-t border-slate-800/40 flex items-center gap-2">
             <GitBranch className="w-3.5 h-3.5 text-slate-600" />
             <span className="text-[11px] text-slate-600 font-mono">
-              {isReady && result
-                ? "Ingested: " + result.queue_managers + " QMs · " + result.queues + " queues · " + result.applications + " apps · " + result.channels + " channels"
+              {isAnalyzed && analysisResult
+                ? "Analysis: " + analysisResult.topology_stats.queue_managers + " QMs · " + analysisResult.topology_stats.queues + " queues · " + analysisResult.topology_stats.applications + " apps · " + totalFindings + " findings · health " + healthScore + "%"
+                : isReady && ingestResult
+                ? "Ingested: " + ingestResult.queue_managers + " QMs · " + ingestResult.queues + " queues · " + ingestResult.applications + " apps · " + ingestResult.channels + " channels"
                 : "Last scan: 2024-03-15 09:42:07 UTC  •  847 objects analyzed"}
             </span>
           </div>
@@ -347,10 +444,10 @@ export default function Dashboard() {
           <h3 className="text-[14px] font-semibold text-white mb-4">Complexity Reduction Projection</h3>
           <div className="space-y-3">
             {[
-              { label: "Queue Managers", current: isReady && result ? result.queue_managers : 47, target: 28, color: "bg-blue-500" },
-              { label: "Active Channels", current: isReady && result ? result.channels : 312, target: 189, color: "bg-cyan-500" },
+              { label: "Queue Managers", current: isReady && ingestResult ? ingestResult.queue_managers : 47, target: 28, color: "bg-blue-500" },
+              { label: "Active Channels", current: isReady && ingestResult ? ingestResult.channels : 312, target: 189, color: "bg-cyan-500" },
               { label: "Policy Violations", current: 18, target: 0, color: "bg-rose-500" },
-              { label: "Cross-QM Dependencies", current: isReady && result ? result.applications : 134, target: 51, color: "bg-amber-500" },
+              { label: "Cross-QM Dependencies", current: isReady && ingestResult ? ingestResult.applications : 134, target: 51, color: "bg-amber-500" },
             ].map((item) => {
               const safeTarget = Math.min(item.target, item.current)
               const pct = item.current > 0 ? (safeTarget / item.current) * 100 : 0

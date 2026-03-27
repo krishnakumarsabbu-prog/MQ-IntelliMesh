@@ -1,8 +1,11 @@
 import { motion } from 'framer-motion'
 import { Sparkles, AlertOctagon, AlertTriangle } from 'lucide-react'
-import type { intelligenceHighlights } from '../../data/topologyData'
-
-type Highlight = typeof intelligenceHighlights[number]
+interface Highlight {
+  id: string | number
+  message: string
+  severity: 'critical' | 'warning'
+  count: number
+}
 
 interface IntelligencePanelProps {
   highlights: Highlight[]

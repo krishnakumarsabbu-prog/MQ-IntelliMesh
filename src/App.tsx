@@ -9,10 +9,12 @@ import ComplexityLab from './pages/ComplexityLab'
 import Explainability from './pages/Explainability'
 import Exports from './pages/Exports'
 import { IngestProvider } from './context/IngestContext'
+import { AnalysisProvider } from './context/AnalysisContext'
 
 export default function App() {
   return (
     <IngestProvider>
+    <AnalysisProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppShell />}>
@@ -28,6 +30,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+    </AnalysisProvider>
     </IngestProvider>
   )
 }

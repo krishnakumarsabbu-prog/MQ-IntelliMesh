@@ -39,8 +39,8 @@ export interface IngestResponse {
   relationships: number
 }
 
-export interface Finding {
-  finding_id: string
+export interface AnalysisFinding {
+  id: string
   type: string
   category: string
   severity: string
@@ -48,23 +48,62 @@ export interface Finding {
   subject_id: string
   title: string
   description: string
+  impact: string
   recommendation: string
+  evidence: Record<string, unknown>
   confidence: number
+}
+
+export interface SeverityBreakdown {
+  critical: number
+  high: number
+  medium: number
+  low: number
+}
+
+export interface AnalysisSummary {
+  total_findings: number
+  severity_breakdown: SeverityBreakdown
+  category_breakdown: Record<string, number>
+  policy_violations: number
+  hotspots: number
+  simplification_opportunities: number
+  critical_and_high: number
+}
+
+export interface AnalysisHotspot {
+  object_id: string
+  object_type: string
+  reason: string
+  severity: string
+  score: number
+  finding_count: number
+  details: Record<string, unknown>
+}
+
+export interface AnalysisHealth {
+  score: number
+  label: string
+  contributing_factors: string[]
+}
+
+export interface AnalysisTopologyStats {
+  queue_managers: number
+  queues: number
+  applications: number
+  channels: number
+  relationships: number
 }
 
 export interface AnalyzeResponse {
   status: string
   message: string
   dataset_id: string
-  health_score: number
-  findings: Finding[]
-  findings_count: number
-  critical_count: number
-  high_count: number
-  medium_count: number
-  low_count: number
-  info_count: number
-  summary: Record<string, unknown>
+  summary: AnalysisSummary
+  health: AnalysisHealth
+  hotspots: AnalysisHotspot[]
+  findings: AnalysisFinding[]
+  topology_stats: AnalysisTopologyStats
 }
 
 export interface TransformDecision {
