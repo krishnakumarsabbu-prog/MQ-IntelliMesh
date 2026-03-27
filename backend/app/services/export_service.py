@@ -66,6 +66,8 @@ def generate_exports(
     findings = analysis_result.get("findings", [])
 
     artifacts += _write_target_csvs(target, export_dir)
+    artifacts += _write_hackathon_denormalized_csv(target, topology, transform_result, export_dir)
+    artifacts += _write_security_policies_csv(target, export_dir)
     artifacts += _write_analysis_csvs(findings, decisions, validation, complexity, export_dir)
     artifacts += _write_summary_jsons(transform_result, analysis_result, export_dir)
 
@@ -483,4 +485,248 @@ def _write_summary_jsons(
     size = write_json(transform_summary_doc, path)
     artifacts.append({"name": "transform_summary.json", "type": "summary", "records": 1, "path": path, "size_bytes": size})
 
+    return artifacts
+
+
+def _write_hackathon_denormalized_csv(
+    target: dict[str, Any],
+    topology: dict[str, Any],
+    transform_result: dict[str, Any],
+    export_dir: str,
+) -> list[dict[str, Any]]:
+    routes = target.get("routes", [])
+    local_queues = target.get("local_queues", [])
+    remote_queues = target.get("remote_queues", [])
+    xmit_queues = target.get("xmit_queues", [])
+    channels = target.get("channels", [])
+    apps = target.get("applications", [])
+    qms = target.get("queue_managers", [])
+    security_policies = target.get("security_policies", [])
+
+    app_meta: dict[str, dict] = {a["app_id"]: a for a in apps}
+    app_sec: dict[str, dict] = {}
+    for p in security_policies:
+        if p.get("app_id"):
+            app_sec[p["app_id"]] = p
+
+    as_is_apps: dict[str, dict] = {
+        a.get("app_id", ""): a
+        for a in topology.get("applications", [])
+        if a.get("app_id")
+    }
+
+    lq_by_name: dict[str, dict] = {q["queue_name"]: q for q in local_queues}
+    rq_by_name: dict[str, dict] = {q["queue_name"]: q for q in remote_queues}
+    xq_by_name: dict[str, dict] = {q["queue_name"]: q for q in xmit_queues}
+
+    sdr_by_pair: dict[tuple[str, str], str] = {}
+    rcvr_by_pair: dict[tuple[str, str], str] = {}
+    for ch in channels:
+        pair = (ch.get("from_qm", ""), ch.get("to_qm", ""))
+        if ch.get("channel_type") == "SDR":
+            sdr_by_pair[pair] = ch.get("channel_name", "")
+        elif ch.get("channel_type") == "RCVR":
+            rcvr_by_pair[pair] = ch.get("channel_name", "")
+
+    rows = []
+
+    for route in routes:
+        producer_app = route.get("producer_app", "")
+        consumer_app = route.get("consumer_app", "")
+        producer_qm = route.get("producer_qm", "")
+        consumer_qm = route.get("consumer_qm", "")
+        local_queue = route.get("local_queue", "")
+        remote_queue = route.get("remote_queue", "")
+        xmit_queue = route.get("xmit_queue", "")
+        same_qm = route.get("same_qm", False)
+
+        producer_meta = app_meta.get(producer_app, {})
+        producer_as_is = as_is_apps.get(producer_app, {})
+        producer_sec = app_sec.get(producer_app, {})
+
+        lq_info = lq_by_name.get(local_queue, {})
+        xq_info = xq_by_name.get(xmit_queue, {})
+
+        lob = producer_as_is.get("line_of_business") or producer_meta.get("owning_team") or ""
+        neighborhood = producer_as_is.get("neighborhood") or ""
+        hosting = producer_as_is.get("hosting_type") or producer_meta.get("hosting_type") or ""
+        data_class = producer_as_is.get("data_classification") or producer_meta.get("data_classification") or "Internal"
+        compliance_tags = producer_as_is.get("compliance_tags") or producer_meta.get("compliance_tags") or []
+        pci_val = "Yes" if "PCI" in compliance_tags else "No"
+        ssl_cipher = producer_sec.get("ssl_cipher_spec", "TLS_RSA_WITH_AES_128_CBC_SHA256")
+
+        rows.append({
+            "Discrete Queue Name": local_queue,
+            "ProducerName": producer_app,
+            "ConsumerName": consumer_app,
+            "Primary App_Full_Name": producer_as_is.get("description") or producer_app,
+            "PrimaryAppDisp": producer_meta.get("role", ""),
+            "PrimaryAppRole": producer_meta.get("role", ""),
+            "Primary Application Id q_type": f"{producer_app} LOCAL",
+            "Primary Neighborhood": neighborhood,
+            "Primary Hosting Type": hosting,
+            "Primary Data Classification": data_class,
+            "Primary Enterprise Critical Payment Application": "No",
+            "Primary PCI": pci_val,
+            "Primary Publicly Accessible": "No",
+            "Primary TRTC": "",
+            "q_type": "Local",
+            "q_manager_name": consumer_qm,
+            "app_id": producer_app,
+            "line_of_business": lob,
+            "cluster_name": "",
+            "cluster_namelist": "",
+            "def_persistence": "Yes",
+            "def_put_response": "Asynchronous",
+            "inhibit_get": "No",
+            "inhibit_put": "No",
+            "remote_q_mgr_name": "",
+            "remote_q_name": "",
+            "usage": "Normal",
+            "xmit_q_name": "",
+            "Neighborhood": neighborhood,
+        })
+
+        if not same_qm and remote_queue:
+            rq_info = rq_by_name.get(remote_queue, {})
+            rows.append({
+                "Discrete Queue Name": remote_queue,
+                "ProducerName": producer_app,
+                "ConsumerName": consumer_app,
+                "Primary App_Full_Name": producer_as_is.get("description") or producer_app,
+                "PrimaryAppDisp": producer_meta.get("role", ""),
+                "PrimaryAppRole": producer_meta.get("role", ""),
+                "Primary Application Id q_type": f"{producer_app} Remote",
+                "Primary Neighborhood": neighborhood,
+                "Primary Hosting Type": hosting,
+                "Primary Data Classification": data_class,
+                "Primary Enterprise Critical Payment Application": "No",
+                "Primary PCI": pci_val,
+                "Primary Publicly Accessible": "No",
+                "Primary TRTC": "",
+                "q_type": "Remote",
+                "q_manager_name": producer_qm,
+                "app_id": producer_app,
+                "line_of_business": lob,
+                "cluster_name": "",
+                "cluster_namelist": "",
+                "def_persistence": "Yes",
+                "def_put_response": "Asynchronous",
+                "inhibit_get": "No",
+                "inhibit_put": "No",
+                "remote_q_mgr_name": consumer_qm,
+                "remote_q_name": local_queue,
+                "usage": "Normal",
+                "xmit_q_name": xmit_queue,
+                "Neighborhood": neighborhood,
+            })
+
+        if not same_qm and xmit_queue:
+            rows.append({
+                "Discrete Queue Name": xmit_queue,
+                "ProducerName": "",
+                "ConsumerName": "",
+                "Primary App_Full_Name": "",
+                "PrimaryAppDisp": "Transmission Queue",
+                "PrimaryAppRole": "Infrastructure",
+                "Primary Application Id q_type": f"{producer_qm} XMITQ",
+                "Primary Neighborhood": neighborhood,
+                "Primary Hosting Type": hosting,
+                "Primary Data Classification": "Internal",
+                "Primary Enterprise Critical Payment Application": "No",
+                "Primary PCI": "No",
+                "Primary Publicly Accessible": "No",
+                "Primary TRTC": "",
+                "q_type": "Local",
+                "q_manager_name": producer_qm,
+                "app_id": "",
+                "line_of_business": lob,
+                "cluster_name": "",
+                "cluster_namelist": "",
+                "def_persistence": "Yes",
+                "def_put_response": "Asynchronous",
+                "inhibit_get": "No",
+                "inhibit_put": "No",
+                "remote_q_mgr_name": "",
+                "remote_q_name": "",
+                "usage": "Transmission",
+                "xmit_q_name": "",
+                "Neighborhood": neighborhood,
+            })
+
+    seen_route_keys: set[tuple] = set()
+    deduped = []
+    for row in rows:
+        key = (row["Discrete Queue Name"], row["ProducerName"], row["ConsumerName"], row["q_manager_name"])
+        if key not in seen_route_keys:
+            seen_route_keys.add(key)
+            deduped.append(row)
+
+    df = pd.DataFrame(deduped) if deduped else pd.DataFrame(columns=[
+        "Discrete Queue Name", "ProducerName", "ConsumerName",
+        "Primary App_Full_Name", "PrimaryAppDisp", "PrimaryAppRole",
+        "Primary Application Id q_type", "Primary Neighborhood", "Primary Hosting Type",
+        "Primary Data Classification", "Primary Enterprise Critical Payment Application",
+        "Primary PCI", "Primary Publicly Accessible", "Primary TRTC",
+        "q_type", "q_manager_name", "app_id", "line_of_business",
+        "cluster_name", "cluster_namelist", "def_persistence", "def_put_response",
+        "inhibit_get", "inhibit_put", "remote_q_mgr_name", "remote_q_name",
+        "usage", "xmit_q_name", "Neighborhood",
+    ])
+
+    path = os.path.join(export_dir, "target_topology_hackathon_format.csv")
+    size = write_csv(df, path)
+    return [{"name": "target_topology_hackathon_format.csv", "type": "target_topology_denormalized", "records": len(df), "path": path, "size_bytes": size}]
+
+
+def _write_security_policies_csv(
+    target: dict[str, Any],
+    export_dir: str,
+) -> list[dict[str, Any]]:
+    policies = target.get("security_policies", [])
+
+    app_policies = [p for p in policies if p.get("app_id")]
+    channel_policies = [p for p in policies if p.get("channel_name")]
+
+    app_rows = [
+        {
+            "policy_id": p.get("policy_id", ""),
+            "app_id": p.get("app_id", ""),
+            "owning_qm": p.get("owning_qm", ""),
+            "mq_auth_enabled": p.get("mq_auth_enabled", True),
+            "ssl_cipher_spec": p.get("ssl_cipher_spec", ""),
+            "channel_auth_record": p.get("channel_auth_record", ""),
+            "put_authority": p.get("put_authority", "DEFAULT"),
+            "get_authority": p.get("get_authority", "DEFAULT"),
+            "encryption_required": p.get("encryption_required", False),
+            "pci_scoped": p.get("pci_scoped", False),
+            "compliance_tags": "|".join(p.get("compliance_tags", [])),
+        }
+        for p in app_policies
+    ]
+    df_apps = pd.DataFrame(app_rows) if app_rows else pd.DataFrame()
+    path_apps = os.path.join(export_dir, "security_policies_applications.csv")
+    size_apps = write_csv(df_apps, path_apps)
+
+    ch_rows = [
+        {
+            "policy_id": p.get("policy_id", ""),
+            "channel_name": p.get("channel_name", ""),
+            "from_qm": p.get("from_qm", ""),
+            "to_qm": p.get("to_qm", ""),
+            "ssl_cipher_spec": p.get("ssl_cipher_spec", ""),
+            "ssl_client_auth": p.get("ssl_client_auth", "REQUIRED"),
+            "mca_user_id": p.get("mca_user_id", ""),
+            "heartbeat_interval": p.get("heartbeat_interval", 300),
+            "max_msg_length": p.get("max_msg_length", 104857600),
+        }
+        for p in channel_policies
+    ]
+    df_chs = pd.DataFrame(ch_rows) if ch_rows else pd.DataFrame()
+    path_chs = os.path.join(export_dir, "security_policies_channels.csv")
+    size_chs = write_csv(df_chs, path_chs)
+
+    artifacts = []
+    artifacts.append({"name": "security_policies_applications.csv", "type": "security", "records": len(df_apps), "path": path_apps, "size_bytes": size_apps})
+    artifacts.append({"name": "security_policies_channels.csv", "type": "security", "records": len(df_chs), "path": path_chs, "size_bytes": size_chs})
     return artifacts

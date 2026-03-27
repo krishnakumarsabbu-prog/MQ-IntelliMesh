@@ -12,6 +12,8 @@ import {
   BarChart3,
   ShieldCheck,
   Cpu,
+  Lock,
+  Layers,
 } from 'lucide-react'
 import { useExport } from '../../context/ExportContext'
 import { getExportDownloadUrl } from '../../lib/api/export'
@@ -64,6 +66,22 @@ const ARTIFACT_TYPE_CONFIG: Record<string, {
     border: 'border-slate-700/40',
     label: 'Manifest',
     description: 'Package manifest and artifact index',
+  },
+  target_topology_denormalized: {
+    icon: Layers,
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/8',
+    border: 'border-teal-500/20',
+    label: 'Hackathon Format',
+    description: 'Target topology in original denormalized CSV format — feed-forward compatible',
+  },
+  security: {
+    icon: Lock,
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/8',
+    border: 'border-rose-500/20',
+    label: 'Security Policy',
+    description: 'TLS cipher specs, CHLAUTH records, and PCI compliance policies',
   },
 }
 
@@ -149,6 +167,8 @@ export default function ExportResultsPanel() {
   if (!isExported || !result || !exportId) return null
 
   const topologyArtifacts = result.artifacts.filter(a => a.type === 'target_topology')
+  const hackathonArtifacts = result.artifacts.filter(a => a.type === 'target_topology_denormalized')
+  const securityArtifacts = result.artifacts.filter(a => a.type === 'security')
   const analysisArtifacts = result.artifacts.filter(a => a.type === 'analysis')
   const validationArtifacts = result.artifacts.filter(a => a.type === 'validation')
   const summaryArtifacts = result.artifacts.filter(a => a.type === 'summary' || a.type === 'manifest')
@@ -238,22 +258,34 @@ export default function ExportResultsPanel() {
               startIndex={0}
             />
             <ArtifactGroupSection
+              title="Hackathon-Format Target CSV (Feed-Forward Compatible)"
+              artifacts={hackathonArtifacts}
+              exportId={exportId}
+              startIndex={topologyArtifacts.length}
+            />
+            <ArtifactGroupSection
+              title="Security Policies (Secure-by-Default)"
+              artifacts={securityArtifacts}
+              exportId={exportId}
+              startIndex={topologyArtifacts.length + hackathonArtifacts.length}
+            />
+            <ArtifactGroupSection
               title="Intelligence & Analysis Reports"
               artifacts={analysisArtifacts}
               exportId={exportId}
-              startIndex={topologyArtifacts.length}
+              startIndex={topologyArtifacts.length + hackathonArtifacts.length + securityArtifacts.length}
             />
             <ArtifactGroupSection
               title="Validation & Compliance"
               artifacts={validationArtifacts}
               exportId={exportId}
-              startIndex={topologyArtifacts.length + analysisArtifacts.length}
+              startIndex={topologyArtifacts.length + hackathonArtifacts.length + securityArtifacts.length + analysisArtifacts.length}
             />
             <ArtifactGroupSection
               title="Summary & Manifest"
               artifacts={summaryArtifacts}
               exportId={exportId}
-              startIndex={topologyArtifacts.length + analysisArtifacts.length + validationArtifacts.length}
+              startIndex={topologyArtifacts.length + hackathonArtifacts.length + securityArtifacts.length + analysisArtifacts.length + validationArtifacts.length}
             />
 
             <div className="mt-3 pt-3 border-t border-slate-800/40 flex items-center justify-between">

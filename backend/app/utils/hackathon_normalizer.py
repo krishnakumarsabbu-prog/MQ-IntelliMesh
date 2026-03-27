@@ -44,6 +44,9 @@ _INVALID_VALUES = frozenset({
     "-", "--", "n.a.", "not applicable", "not available",
 })
 
+_BOOLEAN_INHIBIT_ENABLED = frozenset({"enabled", "yes", "true", "1"})
+_BOOLEAN_INHIBIT_DISABLED = frozenset({"disabled", "no", "false", "0", "not enabled"})
+
 _HACKATHON_REQUIRED_COLS = {
     "discrete queue name",
     "q_manager_name",
@@ -170,6 +173,17 @@ def _clean_app_name(val: Any) -> str | None:
     return cleaned
 
 
+def _resolve_inhibit(val: Any) -> str:
+    if val is None:
+        return "1"
+    s = str(val).strip().lower()
+    if s in _INVALID_VALUES:
+        return "1"
+    if s in _BOOLEAN_INHIBIT_ENABLED:
+        return "0"
+    return "1"
+
+
 def _safe_col(df: pd.DataFrame, col: str, row: pd.Series) -> str | None:
     if col in df.columns:
         return _clean(row.get(col))
@@ -268,9 +282,11 @@ def _extract_queues(
         remote_q = _clean_queue_name(row.get("remote_q_name"))
         xmit_q = _clean_queue_name(row.get("xmit_q_name"))
         usage = _clean(row.get("usage"))
+        if usage and usage.lower() in _INVALID_VALUES:
+            usage = None
         persistence = _clean(row.get("def_persistence"))
-        inhibit_get = _clean(row.get("inhibit_get"))
-        inhibit_put = _clean(row.get("inhibit_put"))
+        inhibit_get_raw = row.get("inhibit_get")
+        inhibit_put_raw = row.get("inhibit_put")
 
         seen[key] = {
             "queue_name": q_name,
@@ -279,8 +295,8 @@ def _extract_queues(
             "depth": None,
             "max_depth": None,
             "persistence": persistence,
-            "get_enabled": "0" if inhibit_get and inhibit_get.upper() == "ENABLED" else "1",
-            "put_enabled": "0" if inhibit_put and inhibit_put.upper() == "ENABLED" else "1",
+            "get_enabled": _resolve_inhibit(inhibit_get_raw),
+            "put_enabled": _resolve_inhibit(inhibit_put_raw),
             "description": usage,
             "is_dlq": False,
             "remote_qm": remote_qm,
@@ -349,6 +365,13 @@ def _extract_applications(
 
     for _, row in df.iterrows():
         app_id_raw = _clean(row.get("app_id"))
+        merged_col = _clean(row.get("primary_app_id_qtype_merged"))
+        if not app_id_raw and merged_col:
+            parts = [p.strip() for p in merged_col.split() if p.strip()]
+            if parts:
+                candidate = parts[0]
+                if len(candidate) >= 2 and not re.fullmatch(r"[0-9]+", candidate):
+                    app_id_raw = candidate
         app_full = _clean(row.get("primary_app_full_name"))
         app_disp = _clean(row.get("primaryappdisp"))
         role_raw = _clean(row.get("primaryapprole"))
@@ -519,7 +542,8 @@ _COLUMN_ALIAS_MAP: dict[str, str] = {
     "primaryapp_fullname": "primary_app_full_name",
     "primaryappdisp": "primaryappdisp",
     "primaryapprole": "primaryapprole",
-    "primaryapplicationidq_type": "primary_application_id_qtype",
+    "primaryapplicationidq_type": "primary_app_id_qtype_merged",
+    "primaryapplicationid": "app_id",
     "primaryneighborhood": "primary_neighborhood",
     "primaryhostingtype": "primary_hosting_type",
     "primarydataclassification": "primary_data_classification",
