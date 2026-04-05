@@ -36,7 +36,6 @@ import IntelligencePanel from '../components/topology/IntelligencePanel'
 import TopologyLegend from '../components/topology/TopologyLegend'
 import TopologyFilterBar, { type TopologyFilters } from '../components/topology/TopologyFilterBar'
 import MetricCard from '../components/ui/MetricCard'
-import ViewToggle, { type TopologyView } from '../components/topology/ViewToggle'
 import NetworkGraphView from '../components/topology/NetworkGraphView'
 import GraphFilterPanel from '../components/topology/GraphFilterPanel'
 import {
@@ -310,7 +309,6 @@ const metricCards = [
 export default function AsIsTopology() {
   const { isAnalyzed, result, healthScore, criticalCount, highCount, totalFindings } = useAnalysis()
   const { isReady: ingestReady } = useIngest()
-  const [activeView, setActiveView] = useState<TopologyView>('canvas')
   const [graphFilters, setGraphFilters] = useState<GraphFilters>(DEFAULT_GRAPH_FILTERS)
   const [graphSelectedNodeId, setGraphSelectedNodeId] = useState<string | null>(null)
 
@@ -401,7 +399,6 @@ export default function AsIsTopology() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <ViewToggle view={activeView} onChange={setActiveView} />
             {isAnalyzed ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
@@ -420,56 +417,68 @@ export default function AsIsTopology() {
       </div>
 
       <div className="flex flex-1 gap-4 px-6 pb-5 min-h-0">
-        <div className="flex-1 bg-[#0B1020] border border-slate-800/60 rounded-2xl overflow-hidden flex flex-col shadow-2xl min-w-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60 bg-[#0F172A]/90 flex-shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[12px] font-semibold text-slate-300">
-                {activeView === 'canvas' ? 'Live Topology Canvas' : 'Network Graph View'}
-              </span>
-              <span className="text-[10px] font-mono text-slate-600">
-                {activeView === 'canvas' ? '· Click any node to inspect' : '· Physics-based layout · Click to select'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-slate-600">
-                {activeView === 'canvas'
-                  ? `${initialNodes.length} nodes · ${initialEdges.length} edges`
-                  : `${graphNodes.length} nodes · ${graphEdges.length} edges`}
-              </span>
-              {isAnalyzed ? (
-                <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                  Analysis Complete
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-slate-700/40 border border-slate-700/40 text-slate-500">
-                  Awaiting Analysis
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0">
 
-          {activeView === 'canvas' ? (
+          {/* ReactFlow canvas */}
+          <div className="flex-1 bg-[#0B1020] border border-slate-800/60 rounded-2xl overflow-hidden flex flex-col shadow-2xl min-h-0" style={{ minHeight: '340px' }}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60 bg-[#0F172A]/90 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[12px] font-semibold text-slate-300">Live Topology Canvas</span>
+                <span className="text-[10px] font-mono text-slate-600">· Click any node to inspect</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-slate-600">
+                  {initialNodes.length} nodes · {initialEdges.length} edges
+                </span>
+                {isAnalyzed ? (
+                  <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+                    Analysis Complete
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-slate-700/40 border border-slate-700/40 text-slate-500">
+                    Awaiting Analysis
+                  </span>
+                )}
+              </div>
+            </div>
             <ReactFlowProvider>
               <TopologyCanvas />
             </ReactFlowProvider>
-          ) : (
-            <div className="flex-1 flex flex-col min-h-0">
-              <GraphFilterPanel
-                filters={graphFilters}
-                onChange={setGraphFilters}
-                onReset={handleGraphFilterReset}
-                availableRegions={availableRegions}
-              />
-              <NetworkGraphView
-                nodes={graphNodes}
-                edges={graphEdges}
-                filters={graphFilters}
-                onNodeSelect={setGraphSelectedNodeId}
-                selectedNodeId={graphSelectedNodeId}
-              />
+          </div>
+
+          {/* vis-network graph */}
+          <div className="flex-1 bg-[#0B1020] border border-slate-800/60 rounded-2xl overflow-hidden flex flex-col shadow-2xl min-h-0" style={{ minHeight: '340px' }}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60 bg-[#0F172A]/90 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-[12px] font-semibold text-slate-300">Network Graph View</span>
+                <span className="text-[10px] font-mono text-slate-600">· Physics-based layout · Click to select · Hover for details</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-slate-600">
+                  {graphNodes.length} nodes · {graphEdges.length} edges
+                </span>
+                <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-300">
+                  vis-network
+                </span>
+              </div>
             </div>
-          )}
+            <GraphFilterPanel
+              filters={graphFilters}
+              onChange={setGraphFilters}
+              onReset={handleGraphFilterReset}
+              availableRegions={availableRegions}
+            />
+            <NetworkGraphView
+              nodes={graphNodes}
+              edges={graphEdges}
+              filters={graphFilters}
+              onNodeSelect={setGraphSelectedNodeId}
+              selectedNodeId={graphSelectedNodeId}
+            />
+          </div>
+
         </div>
 
         <motion.div
